@@ -2,7 +2,7 @@
 // חיבור למסד SQLite ויצירת טבלאות במידת הצורך
 require_once __DIR__ . '/config.php';
 
-function get_db(): PDO {
+function get_db() {
     static $pdo = null;
     if ($pdo === null) {
         $dir = dirname(DB_FILE);
@@ -16,7 +16,7 @@ function get_db(): PDO {
     return $pdo;
 }
 
-function init_schema(PDO $pdo): void {
+function init_schema($pdo) {
     $pdo->exec('CREATE TABLE IF NOT EXISTS locations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE
@@ -42,12 +42,12 @@ function init_schema(PDO $pdo): void {
     )');
 }
 
-function fetch_locations(): array {
+function fetch_locations() {
     $stmt = get_db()->query('SELECT id, name FROM locations ORDER BY name');
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function add_location(string $name): bool {
+function add_location($name) {
     $stmt = get_db()->prepare('INSERT INTO locations(name) VALUES (:n)');
     try {
         return $stmt->execute([':n' => trim($name)]);
@@ -56,7 +56,7 @@ function add_location(string $name): bool {
     }
 }
 
-function add_cat(string $name, ?string $description, ?int $location_id): int {
+function add_cat($name, $description, $location_id) {
     $stmt = get_db()->prepare('INSERT INTO cats(name, description, location_id) VALUES (:n, :d, :l)');
     $stmt->execute([
         ':n' => trim($name),
@@ -66,7 +66,7 @@ function add_cat(string $name, ?string $description, ?int $location_id): int {
     return (int)get_db()->lastInsertId();
 }
 
-function fetch_cats(?int $location_id = null): array {
+function fetch_cats($location_id = null) {
     if ($location_id) {
         $stmt = get_db()->prepare('SELECT c.*, l.name AS location_name
                                    FROM cats c LEFT JOIN locations l ON c.location_id = l.id
@@ -81,7 +81,7 @@ function fetch_cats(?int $location_id = null): array {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function add_media(int $cat_id, string $type, ?string $drive_file_id, ?string $local_path): bool {
+function add_media($cat_id, $type, $drive_file_id, $local_path) {
     $stmt = get_db()->prepare('INSERT INTO media(cat_id, type, drive_file_id, local_path) VALUES (:c, :t, :df, :lp)');
     return $stmt->execute([
         ':c' => $cat_id,
@@ -91,7 +91,7 @@ function add_media(int $cat_id, string $type, ?string $drive_file_id, ?string $l
     ]);
 }
 
-function fetch_media_for_cat(int $cat_id): array {
+function fetch_media_for_cat($cat_id) {
     $stmt = get_db()->prepare('SELECT * FROM media WHERE cat_id = :c ORDER BY created_at DESC');
     $stmt->execute([':c' => $cat_id]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);

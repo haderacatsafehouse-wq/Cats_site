@@ -4,13 +4,13 @@
 
 require_once __DIR__ . '/config.php';
 
-function cloudinary_is_configured(): bool {
+function cloudinary_is_configured() {
     return defined('CLOUDINARY_CLOUD_NAME') && CLOUDINARY_CLOUD_NAME !== 'YOUR_CLOUD_NAME'
         && defined('CLOUDINARY_API_KEY') && CLOUDINARY_API_KEY
         && defined('CLOUDINARY_API_SECRET') && CLOUDINARY_API_SECRET;
 }
 
-function upload_to_cloudinary(string $localFilePath, string $resourceType, string $fileName, ?string $mimeType = null): array {
+function upload_to_cloudinary($localFilePath, $resourceType, $fileName, $mimeType = null) {
     if (!cloudinary_is_configured()) {
         return [ 'success' => false, 'error' => 'Cloudinary לא מוגדר (חסר cloud_name או מפתחות)' ];
     }
@@ -72,7 +72,7 @@ function upload_to_cloudinary(string $localFilePath, string $resourceType, strin
     return [ 'success' => false, 'error' => 'העלאה נכשלה: ' . $msg ];
 }
 
-function cloudinary_transform_image_url(string $secureUrl, string $transformation = 'c_fill,w_600,h_400,q_auto,f_auto'): string {
+function cloudinary_transform_image_url($secureUrl, $transformation = 'c_fill,w_600,h_400,q_auto,f_auto') {
     // משנה את ה-URL של Cloudinary כדי להחזיר גרסה קלה יותר להצגה ברשימות
     // מחפש את הסגמנט '/image/upload/' ומוסיף את מחרוזת הטרנספורמציה אחריו
     $needle = '/image/upload/';
