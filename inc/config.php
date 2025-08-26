@@ -3,12 +3,12 @@
 // PHP 7.3 Compatible
 
 // נתיב קובץ מסד הנתונים (SQLite)
-// ניתן לשנות נתיב זה לפי הצורך
-define('DB_FILE', __DIR__ . '/../data/cats_sanctuary.sqlite');
+// ניתן לשנות נתיב זה לפי הצורך או באמצעות משתנה סביבה CATS_DB_FILE
+define('DB_FILE', getenv('CATS_DB_FILE') ?: (__DIR__ . '/../data/cats_sanctuary.sqlite'));
 
 // תיקיית העלאות מקומית (לשימוש זמני/ביניים)
-// מומלץ להשאיר לשימוש תצוגה מקומית כל עוד ההעלאה לגוגל דרייב היא מצבית
-define('UPLOADS_DIR', __DIR__ . '/../uploads');
+// ניתן לשנות גם באמצעות משתנה סביבה CATS_UPLOADS_DIR
+define('UPLOADS_DIR', getenv('CATS_UPLOADS_DIR') ?: (__DIR__ . '/../uploads'));
 
 // הגדרות Cloudinary — נדרש cloud_name כדי להעלות קבצים
 // חשוב: מומלץ לשמור מפתחות מחוץ לקוד, אך כאן לפי בקשתכם לשימוש מיידי.

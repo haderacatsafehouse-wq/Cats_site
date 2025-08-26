@@ -4,12 +4,35 @@ require_once __DIR__ . '/config.php';
 
 function get_db() {
     static $pdo = null;
+    static $db_path = null;
     if ($pdo === null) {
-        $dir = dirname(DB_FILE);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
+        // בדיקה האם דרייבר SQLite זמין ב-PDO, כדי למנוע שגיאת "could not find driver"
+        if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+            error_log('PDO SQLite driver is missing. Install/enable php-sqlite3 (pdo_sqlite).');
+            header('Content-Type: text/html; charset=UTF-8');
+            die('שגיאת שרת: דרייבר SQLite עבור PDO לא מותקן. יש להתקין/להפעיל את php-sqlite3 (pdo_sqlite) ולהפעיל מחדש את השרת.');
         }
-        $pdo = new PDO('sqlite:' . DB_FILE);
+
+        // קביעת נתיב בסיסי ומעבר לנתיב חלופי אם אין הרשאות כתיבה
+        $candidate = DB_FILE;
+        $dir = dirname($candidate);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        if (!is_dir($dir) || !is_writable($dir)) {
+            $altDir = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'cats_sanctuary';
+            if (!is_dir($altDir)) { @mkdir($altDir, 0775, true); }
+            if (is_dir($altDir) && is_writable($altDir)) {
+                error_log('DB path not writable: ' . $dir . ' — falling back to temp dir: ' . $altDir);
+                $candidate = $altDir . DIRECTORY_SEPARATOR . 'cats_sanctuary.sqlite';
+            } else {
+                header('Content-Type: text/html; charset=UTF-8');
+                die('שגיאת שרת: אין הרשאות כתיבה לתיקיית מסד הנתונים. נא להעניק הרשאות ל-' . htmlspecialchars($dir) . ' או להגדיר CATS_DB_FILE לנתיב ניתן לכתיבה.');
+            }
+        }
+
+        $db_path = $candidate;
+        $pdo = new PDO('sqlite:' . $db_path);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         init_schema($pdo);
     }
