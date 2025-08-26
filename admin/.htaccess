@@ -1,0 +1,22 @@
+###############################################
+# אזור ניהול מוגן בסיסמא (Basic Auth)
+# חשוב: ודאו שבתצורת Apache מוגדר AllowOverride All לתיקייה זו,
+# אחרת קובץ זה לא ייטען והאזור לא יוגן.
+#
+# ערכו את AuthUserFile כך שיצביע לקובץ .htpasswd שיצרתם עם htpasswd.
+# דוגמה ב-Windows:
+#   htpasswd -c C:\Apache24\auth\cats_admin.htpasswd admin
+# ואז:
+#   AuthUserFile "C:/Apache24/auth/cats_admin.htpasswd"
+###############################################
+
+AuthType Basic
+AuthName "אזור ניהול"
+AuthUserFile "C:/Apache24/auth/cats_admin.htpasswd"  
+Require valid-user
+
+# הגבלת גדלי העלאה בסיסית (במידה ו-mod_php7 פעיל)
+<IfModule mod_php7.c>
+  php_value upload_max_filesize 50M
+  php_value post_max_size 60M
+</IfModule>

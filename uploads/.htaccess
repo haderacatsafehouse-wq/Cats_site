@@ -1,0 +1,5 @@
+# מניעת הרצת סקריפטים ומניעת רשימת תיקייה
+Options -Indexes
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7)$">
+  Deny from all
+</FilesMatch>

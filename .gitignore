@@ -1,0 +1,14 @@
+# Ignore local SQLite database and uploads
+/data/*.sqlite
+/uploads/*
+!/uploads/index.php
+!/uploads/.htaccess
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Env/config secrets (if added later)
+.env
+*.key
+*.pem
