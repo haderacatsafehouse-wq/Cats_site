@@ -28,9 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($name === '') {
             $errors[] = 'יש להזין שם חתול';
         } else {
-      $catId = add_cat($name, $description ?: null, $location_id);
-      // טיפול במדיה
-            if (!empty($_FILES['media_files']['name'][0])) {
+  $catId = add_cat($name, $description ?: null, $location_id);
+  // טיפול במדיה (Cloudinary בלבד)
+    if (!empty($_FILES['media_files']['name'][0])) {
                 $count = count($_FILES['media_files']['name']);
                 for ($i = 0; $i < $count; $i++) {
                     $tmp = $_FILES['media_files']['tmp_name'][$i];
@@ -50,14 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $secureUrl = $uploaded['secure_url'] ?? null;
             add_media($catId, $resType, $publicId, $secureUrl);
           } else {
-            // נפילה ל-local fallback כדי לא לאבד את הקובץ
-            if (!is_dir(UPLOADS_DIR)) { @mkdir(UPLOADS_DIR, 0775, true); }
-            $safeName = uniqid('file_', true) . '_' . preg_replace('/[^A-Za-z0-9_.-\x{0590}-\x{05FF}]/u', '_', $orig);
-            $fsPath = rtrim(UPLOADS_DIR, '/\\') . DIRECTORY_SEPARATOR . $safeName;
-            $webPath = '/uploads/' . $safeName;
-            if (move_uploaded_file($tmp, $fsPath)) {
-              add_media($catId, $resType, null, $webPath);
-            }
+            $errMsg = isset($uploaded['error']) ? $uploaded['error'] : 'שגיאה לא ידועה בהעלאה ל-Cloudinary';
+            $errors[] = 'נכשלה העלאה ל-Cloudinary עבור הקובץ: ' . htmlspecialchars($orig) . ' — ' . htmlspecialchars($errMsg);
           }
                 }
             }
@@ -131,7 +125,7 @@ $locations = fetch_locations();
             <div class="mb-3">
               <label class="form-label">מדיה (תמונות/וידאו, ניתן לבחור מספר קבצים)</label>
               <input type="file" class="form-control" name="media_files[]" multiple accept="image/*,video/*">
-              <div class="form-text">הקבצים יועלו ל-Cloudinary ויישמרו מקומית רק במקרה של תקלה.</div>
+              <div class="form-text">הקבצים יועלו ל-Cloudinary בלבד (ללא שמירה מקומית).</div>
             </div>
             <button class="btn btn-success" type="submit" name="add_cat" value="1">הוסף חתול</button>
           </form>
