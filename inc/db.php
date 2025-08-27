@@ -223,8 +223,9 @@ function normalize_tag($tag) {
     } else {
         $t = strtolower($t);
     }
-    // אורך סביר
-    if ($t === '' || mb_strlen($t, 'UTF-8') > 50) { return ''; }
+    // אורך סביר (ללא mbstring נ fallback ל-strlen)
+    $len = function_exists('mb_strlen') ? mb_strlen($t, 'UTF-8') : strlen($t);
+    if ($t === '' || $len > 50) { return ''; }
     return $t;
 }
 
