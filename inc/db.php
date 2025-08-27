@@ -418,3 +418,82 @@ function replace_tags_for_cat($cat_id, array $tags) {
         return false;
     }
 }
+
+// ---------------------------------
+// חיפוש חופשי ("fuzzy") בחתולים
+// ---------------------------------
+
+/**
+ * מ逃לט תו מיוחד של LIKE (% ו-_) וגם את תו ה-ESCAPE (\), כדי למנוע "הזרקת תבניות".
+ */
+function sqlite_like_escape($s) {
+    $s = (string)$s;
+    // סדר ההחלפות חשוב: קודם לברוח את ה-escape עצמו
+    $s = str_replace('\\', '\\\\', $s); // \ => \\\\\n+    $s = str_replace('%', '\\%', $s);
+    $s = str_replace('_', '\\_', $s);
+    return $s;
+}
+
+/**
+ * חיפוש חופשי לפי טקסט בכל השדות הרלוונטיים: שם, תיאור, מיקום ותגיות.
+ * החיפוש מתבצע ע"י LIKE עם תווים כלליים (contains), לכל מילה שנמסרה.
+ *
+ * @param string $q       מחרוזת חיפוש (תפורק לטוקנים לפי רווחים/פסיקים)
+ * @param int    $limit   מגבלת פריטים (ברירת מחדל 200)
+ * @return array          רשימת חתולים במבנה כמו fetch_cats (כולל location_name)
+ */
+function search_cats_fuzzy($q, $limit = 200) {
+    $q = (string)$q;
+    $q = trim($q);
+    if ($q === '') { return []; }
+
+    // פיצול למילות חיפוש ייחודיות
+    $parts = preg_split('/[\s,;]+/u', $q, -1, PREG_SPLIT_NO_EMPTY);
+    if (!$parts) { return []; }
+    $uniq = [];
+    foreach ($parts as $p) {
+        $p = trim($p);
+        if ($p === '') { continue; }
+        $uniq[$p] = true;
+    }
+    $tokens = array_keys($uniq);
+
+    // מגבלת פריטים סבירה
+    $limit = (int)$limit;
+    if ($limit < 1) { $limit = 1; }
+    if ($limit > 500) { $limit = 500; }
+
+    $pdo = get_db();
+    $where = [];
+    $params = [];
+
+    // עבור כל טוקן, נדרוש התאמה באחד מהשדות (AND בין טוקנים, OR בין שדות)
+    foreach ($tokens as $i => $tok) {
+        $ph = ":tok{$i}";
+        $pat = '%' . sqlite_like_escape($tok) . '%';
+        $params[$ph] = $pat;
+        $where[] = "(
+            c.name LIKE {$ph} ESCAPE '\\' OR
+            c.description LIKE {$ph} ESCAPE '\\' OR
+            l.name LIKE {$ph} ESCAPE '\\' OR
+            EXISTS (
+                SELECT 1 FROM cat_tags ct
+                INNER JOIN tags t ON t.id = ct.tag_id
+                WHERE ct.cat_id = c.id AND t.name LIKE {$ph} ESCAPE '\\'
+            )
+        )";
+    }
+
+    $sql = 'SELECT c.*, l.name AS location_name
+            FROM cats c
+            LEFT JOIN locations l ON c.location_id = l.id';
+    if ($where) {
+        $sql .= ' WHERE ' . implode(' AND ', $where);
+    }
+    $sql .= ' ORDER BY c.created_at DESC LIMIT ' . $limit;
+
+    $stmt = $pdo->prepare($sql);
+    foreach ($params as $k => $v) { $stmt->bindValue($k, $v, PDO::PARAM_STR); }
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}

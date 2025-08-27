@@ -33,10 +33,14 @@ require_once __DIR__ . '/inc/cloudinary.php';
       <h1 class="h4"></h1>
     </div>
     <div class="col-12 col-md-6">
-      <form class="d-flex" method="get">
-        <?php $tagSel = isset($_GET['tag']) ? trim((string)$_GET['tag']) : ''; ?>
-        <input type="text" name="tag" value="<?= htmlspecialchars($tagSel) ?>" class="form-control me-2" placeholder="#תגית או תגית">
-        <button class="btn btn-primary" type="submit">סינון</button>
+      <form class="d-flex" method="get" role="search" aria-label="חיפוש וסינון">
+        <?php 
+          $tagSel = isset($_GET['tag']) ? trim((string)$_GET['tag']) : ''; 
+          $qSel = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
+        ?>
+        <input type="text" name="q" value="<?= htmlspecialchars($qSel) ?>" class="form-control me-2" placeholder="חיפוש חופשי (שם, תיאור, מיקום, תגיות)">
+        <input type="text" name="tag" value="<?= htmlspecialchars($tagSel) ?>" class="form-control me-2" placeholder="#תגית (אופציונלי)">
+        <button class="btn btn-primary" type="submit">חפש</button>
       </form>
     </div>
   </div>
@@ -54,9 +58,14 @@ require_once __DIR__ . '/inc/cloudinary.php';
 
   <div class="row" id="cats">
     <?php
-  // סינון מיקום יתבצע בצד הלקוח. בצד השרת נטען את כל החתולים (או לפי תג בלבד אם סונן).
-  $tagFilter = isset($_GET['tag']) && $_GET['tag'] !== '' ? $_GET['tag'] : null;
-  $cats = fetch_cats(null, $tagFilter);
+  // סינון מיקום יתבצע בצד הלקוח. בצד השרת נטען לפי חיפוש חופשי (q) אם קיים, אחרת לפי תג, אחרת את כולם.
+  $tagFilter = isset($_GET['tag']) && $_GET['tag'] !== '' ? (string)$_GET['tag'] : null;
+  $qFilter = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
+  if ($qFilter !== '') {
+    $cats = search_cats_fuzzy($qFilter, 200);
+  } else {
+    $cats = fetch_cats(null, $tagFilter);
+  }
       if (!$cats) {
           echo '<div class="col-12"><div class="alert alert-info">אין חתולים להצגה עדיין.</div></div>';
       }
