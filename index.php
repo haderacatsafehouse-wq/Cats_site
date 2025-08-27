@@ -92,7 +92,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
   </div>
 
   <div class="mt-4">
-    <a class="btn btn-outline-secondary" href="/admin/">אזור ניהול (מוגן)</a>
+    <a class="btn btn-outline-secondary" href="/cat/admin/">אזור ניהול (מוגן)</a>
   </div>
 </div>
 

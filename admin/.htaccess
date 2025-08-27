@@ -3,20 +3,30 @@
 # חשוב: ודאו שבתצורת Apache מוגדר AllowOverride All לתיקייה זו,
 # אחרת קובץ זה לא ייטען והאזור לא יוגן.
 #
-# ערכו את AuthUserFile כך שיצביע לקובץ .htpasswd שיצרתם עם htpasswd.
-# דוגמה ב-Windows:
-#   htpasswd -c C:\Apache24\auth\cats_admin.htpasswd admin
-# ואז:
-#   AuthUserFile "C:/Apache24/auth/cats_admin.htpasswd"
+# Debian/Ubuntu:
+#   צרו קובץ סיסמאות:
+#     sudo htpasswd -c /etc/apache2/cats_admin.htpasswd admin
+#   עדכנו את הנתיב כאן בשורה AuthUserFile.
 ###############################################
 
-AuthType Basic
-AuthName "אזור ניהול"
-AuthUserFile "C:/Apache24/auth/cats_admin.htpasswd"  
-Require valid-user
+#AuthType Basic
+#AuthName "אזור ניהול"
+#AuthUserFile "/etc/apache2/cats_admin.htpasswd"  
+#Require valid-user
 
-# הגבלת גדלי העלאה בסיסית (במידה ו-mod_php7 פעיל)
+# הגבלת גדלי העלאה (Apache + mod_php)
+# מכסה גם שמות מודול שונים בין הפצות
 <IfModule mod_php7.c>
-  php_value upload_max_filesize 50M
-  php_value post_max_size 60M
+  php_value upload_max_filesize 100M
+  php_value post_max_size 110M
+  php_value max_execution_time 300
+  php_value max_input_time 300
+  php_value memory_limit 256M
+</IfModule>
+<IfModule php7_module>
+  php_value upload_max_filesize 100M
+  php_value post_max_size 110M
+  php_value max_execution_time 300
+  php_value max_input_time 300
+  php_value memory_limit 256M
 </IfModule>
