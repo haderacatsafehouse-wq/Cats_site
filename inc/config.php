@@ -43,7 +43,7 @@ define('CLOUDINARY_API_KEY', isset($__cloud['api_key']) ? $__cloud['api_key'] : 
 define('CLOUDINARY_API_SECRET', isset($__cloud['api_secret']) ? $__cloud['api_secret'] : '1234');
 
 // הגדרות כלליות ל-UI
-define('SITE_TITLE', 'מקלט חתולים - אינדקס');
+define('SITE_TITLE', 'חתולים בבית המחסה');
 
 // קובץ מיקומים חיצוני (נכנס ל-Git). ניתן לשנות דרך JSON (locations_file).
 // אם לא הוגדר, ישתמש ב-inc/locations.json
