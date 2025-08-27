@@ -215,12 +215,16 @@ function normalize_tag($tag) {
     if ($t === '') { return ''; }
     if ($t[0] === '#') { $t = substr($t, 1); }
     // החלפת רווחים/רצפי רווחים בקו תחתון
-    $t = preg_replace('/\s+/', '_', $t);
-    // השארת תווים מותרים בלבד
-    $t = preg_replace('/[^a-zA-Z0-9_-]/', '', $t);
-    $t = strtolower($t);
+    $t = preg_replace('/\s+/u', '_', $t);
+    // השארת אותיות ומספרים מכל השפות + _ -
+    $t = preg_replace('/[^\p{L}\p{N}_-]/u', '', $t);
+    if (function_exists('mb_strtolower')) {
+        $t = mb_strtolower($t, 'UTF-8');
+    } else {
+        $t = strtolower($t);
+    }
     // אורך סביר
-    if ($t === '' || strlen($t) > 50) { return ''; }
+    if ($t === '' || mb_strlen($t, 'UTF-8') > 50) { return ''; }
     return $t;
 }
 
