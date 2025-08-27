@@ -6,6 +6,13 @@ require_once __DIR__ . '/../inc/cloudinary.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 
+// הגנה: נדרש אימות מנהל; מחזיר 401 בפורמט JSON אם אין הרשאה
+if (!is_admin_authenticated()) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'unauthorized'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 $q = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
 $limit = isset($_GET['limit']) ? max(1, min(200, (int)$_GET['limit'])) : 200;
 // ניתן להעביר exclude=1,2,3 כדי שלא יופיעו בתוצאות (לדוגמה החתול הנוכחי וקישורים שנבחרו כבר)

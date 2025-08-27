@@ -1,6 +1,6 @@
 # Cats Sanctuary Website
 
-אתר PHP (RTL, עברית) להצגת חתולים ולניהול תוכן, עם SQLite, Bootstrap 5 ו-Cloudinary למדיה. אזור הניהול מוגן בסיסמא (Basic Auth) דרך Apache.
+אתר PHP (RTL, עברית) להצגת חתולים ולניהול תוכן, עם SQLite, Bootstrap 5 ו-Cloudinary למדיה. אזור הניהול מוגן בסיסמא: או Basic Auth של Apache או סיסמה מבוססת Session שמוגדרת בתצורה.
 כולל תמיכה ב"קישור חתולים" (Cat Linking) — שיוך חתול לחתולים אחרים, וב"תמונת מפתח" (Main Image) — בחירת תמונה ראשית שתופיע כתמונה הממוזערת ובדף הראשי.
 
 ## מה יש כאן
@@ -45,7 +45,8 @@ Debian (חבילות נפוצות): `apache2`, אחד מ-`libapache2-mod-php` א
     "cloud_name": "YOUR_CLOUD_NAME",
     "api_key": "YOUR_API_KEY",
     "api_secret": "YOUR_API_SECRET"
-  }
+  },
+  "admin_password": "CHANGE_ME"
 }
 ```
 
@@ -67,7 +68,19 @@ Debian (חבילות נפוצות): `apache2`, אחד מ-`libapache2-mod-php` א
 }
 ```
 
-## אבטחת אזור הניהול (Basic Auth)
+## אבטחת אזור הניהול
+ניתן לבחור באחת מהאפשרויות (ואף לשלב ביניהן בפרודקשן):
+
+### סיסמת ניהול בקובץ תצורה (Session)
+כדי לאפשר התחברות בטופס ל־/admin/ ו־/admin/edit.php, הוסיפו לקובץ `inc/config.local.json` או `inc/config.json` את המפתח:
+
+```json
+{ "admin_password": "בחרו_סיסמה_כאן" }
+```
+
+לאחר מכן, ניסיון גישה לעמודי הניהול יבקש סיסמה. נקודת הקצה `admin/search_cats.php` תחזיר 401 JSON אם לא מחוברים. אם המפתח לא מוגדר, הגישה תיחסם עד להגדרה.
+
+### Basic Auth של Apache
 יש שתי דרכים להגדיר htpasswd (דוגמה ללינוקס Debian/Ubuntu; ב-CentOS/RHEL הנתיב לרוב תחת `/etc/httpd/`):
 
 1) הגדרת נתיב קשיח בקובץ `admin/.htaccess` (בטלו הערות משורות AuthType/Name/File/Require ועדכנו את AuthUserFile):

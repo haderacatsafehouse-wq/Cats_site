@@ -42,6 +42,11 @@ define('CLOUDINARY_CLOUD_NAME', isset($__cloud['cloud_name']) ? $__cloud['cloud_
 define('CLOUDINARY_API_KEY', isset($__cloud['api_key']) ? $__cloud['api_key'] : '854982932249496');
 define('CLOUDINARY_API_SECRET', isset($__cloud['api_secret']) ? $__cloud['api_secret'] : '1234');
 
+// סיסמת ניהול פשוטה מבוססת Session (חלופה/תוספת ל-Basic Auth של Apache)
+// הוגדרה בקובץ JSON תחת admin_password
+$__admin_password = isset($__CONF['admin_password']) ? (string)$__CONF['admin_password'] : '';
+define('ADMIN_PASSWORD', $__admin_password);
+
 // הגדרות כלליות ל-UI
 define('SITE_TITLE', 'חתולים בבית המחסה');
 
@@ -58,3 +63,77 @@ $ALLOWED_VIDEO_MIME = [
     'video/mp4', 'video/webm', 'video/ogg'
 ];
 $MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // עד 50MB לקובץ
+
+// ----------------------------
+// עזר: אימות מנהל מבוסס Session
+// ----------------------------
+if (session_status() === PHP_SESSION_NONE) {
+    // שם סשן ייחודי כדי לא להתנגש עם אתרים אחרים באותו דומיין
+    @session_name('cats_admin');
+    @session_start();
+}
+
+/** בדיקה אם המשתמש כבר מחובר כמנהל */
+function is_admin_authenticated() {
+    return !empty($_SESSION['is_admin']);
+}
+
+/** ניסיון התחברות עם סיסמה; מחזיר true אם הצליח */
+function admin_login($password) {
+    $pwd = (string)$password;
+    $conf = defined('ADMIN_PASSWORD') ? ADMIN_PASSWORD : '';
+    if ($conf !== '' && hash_equals((string)$conf, $pwd)) {
+        $_SESSION['is_admin'] = true;
+        return true;
+    }
+    // אם לא הוגדרה סיסמה בקובץ התצורה, לא נאפשר כניסה (שיקול אבטחה)
+    return false;
+}
+
+/** יציאה מהאזור המוגן */
+function admin_logout() {
+    unset($_SESSION['is_admin']);
+}
+
+/**
+ * הגנת עמודי ניהול: אם לא מחובר, מציג טופס התחברות מינימלי (HTML) ושם קוד 401.
+ * יש להשתמש בראש קובץ admin/*.php (למעט נקודות קצה JSON מיוחדות שיחזירו 401 JSON).
+ */
+function require_admin_auth_or_login_form() {
+    if (is_admin_authenticated()) { return; }
+    $err = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_password'])) {
+        if (admin_login($_POST['admin_password'])) {
+            // רענון GET למניעת resubmit של הטופס
+            $redir = strtok($_SERVER['REQUEST_URI'], '\n');
+            header('Location: ' . $redir, true, 302);
+            exit;
+        } else {
+            $err = 'סיסמה שגויה';
+        }
+    }
+    http_response_code(401);
+    header('Content-Type: text/html; charset=UTF-8');
+    echo '<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+       . '<title>כניסה — ניהול חתולים</title>'
+       . '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">'
+       . '<link rel="stylesheet" href="../inc/theme.css">'
+       . '</head><body class="bg-light">'
+       . '<div class="container py-5"><div class="row justify-content-center"><div class="col-12 col-md-6 col-lg-4">'
+       . '<div class="card shadow-sm"><div class="card-body">'
+       . '<h1 class="h5 mb-3">כניסה לאזור הניהול</h1>';
+    if ($err !== '') {
+        echo '<div class="alert alert-danger" role="alert">' . htmlspecialchars($err, ENT_QUOTES, 'UTF-8') . '</div>';
+    }
+    echo '<form method="post">'
+       . '  <div class="mb-3">'
+       . '    <label class="form-label" for="admin_password">סיסמה</label>'
+       . '    <input autofocus required type="password" class="form-control" id="admin_password" name="admin_password" autocomplete="current-password">'
+       . '  </div>'
+       . '  <button type="submit" class="btn btn-primary w-100">כניסה</button>'
+       . '</form>'
+       . '<div class="text-center mt-3"><a class="small" href="/">חזרה לאתר</a></div>'
+       . '</div></div></div></div></div>'
+       . '</body></html>';
+    exit;
+}

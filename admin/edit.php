@@ -1,8 +1,12 @@
 <?php
-// עמוד עריכה נפרד לחתולים (נייד תחילה)
+// עמוד עריכה נפרד לחתולים (נייד תחילה) — מוגן בסיסמא דרך Session
 require_once __DIR__ . '/../inc/config.php';
 require_once __DIR__ . '/../inc/db.php';
 require_once __DIR__ . '/../inc/cloudinary.php';
+
+// הגנה על העמוד
+if (isset($_GET['logout'])) { admin_logout(); }
+require_admin_auth_or_login_form();
 
 $errors = [];
 $success = null;
@@ -188,6 +192,10 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
       <span class="ms-2">חזרה לרשימה</span>
     </a>
     <span class="navbar-text text-light">עריכת חתולים</span>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <a class="btn btn-sm btn-outline-light" href="/cat/admin/">דשבורד</a>
+      <a class="btn btn-sm btn-outline-warning" href="?logout=1" onclick="return confirm('לצאת מהמערכת?');">יציאה</a>
+    </div>
   </div>
 </nav>
 <div class="container">

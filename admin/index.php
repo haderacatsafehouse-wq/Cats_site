@@ -1,8 +1,12 @@
 <?php
-// אזור ניהול (מוגן ב-.htaccess)
+// אזור ניהול (מוגן בסיסמא דרך Session; ניתן בנוסף להגן ב-.htaccess)
 require_once __DIR__ . '/../inc/config.php';
 require_once __DIR__ . '/../inc/db.php';
 require_once __DIR__ . '/../inc/cloudinary.php';
+
+// הגנה על העמוד
+if (isset($_GET['logout'])) { admin_logout(); }
+require_admin_auth_or_login_form();
 
 $errors = [];
 $success = null;
@@ -93,7 +97,10 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
       <span class="ms-2">חזרה לרשימה</span>
     </a>
   <span class="navbar-text text-light">אזור ניהול</span>
-  <a class="btn btn-sm btn-outline-light ms-auto" href="/cat/admin/edit.php">עריכת חתולים</a>
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <a class="btn btn-sm btn-outline-light" href="/cat/admin/edit.php">עריכת חתולים</a>
+    <a class="btn btn-sm btn-outline-warning" href="?logout=1" onclick="return confirm('לצאת מהמערכת?');">יציאה</a>
+  </div>
   </div>
 </nav>
 <div class="container">
