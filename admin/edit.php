@@ -322,7 +322,7 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
       var active = (selectedId === c.id) ? ' active' : '';
       var loc = c.location_name ? c.location_name : 'ללא מיקום';
       var img = c.thumb_url ? '<img class="thumb" src="' + encodeURI(c.thumb_url) + '" alt="" loading="lazy">' : '<span class="thumb-placeholder" title="ללא תמונה"></span>';
-      return '<a href="?id=' + c.id + '&q=' + q + '#edit" class="list-group-item list-group-item-action d-flex align-items-center' + active + ' cat-card">' +
+  return '<a href="?id=' + c.id + '&q=' + q + '" class="list-group-item list-group-item-action d-flex align-items-center' + active + ' cat-card">' +
                img +
                '<div class="flex-fill">' +
                  '<div class="fw-semibold">#' + c.id + ' — ' + escapeHtml(c.name) + '</div>' +
@@ -356,13 +356,11 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
 
   // initial load
   doSearch(<?= json_encode($q, JSON_UNESCAPED_UNICODE) ?>);
-  // If hash or a selected id exists, try to scroll into view smoothly
+  // On small views, auto-scroll to the bottom where the edit pane is
   window.addEventListener('load', function(){
-    if (location.hash === '#edit' || selectedId > 0) {
-      var el = document.getElementById('edit-section');
-      if (el && typeof el.scrollIntoView === 'function') {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+    if (selectedId > 0) {
+      var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+      window.scrollTo({ top: h, behavior: 'smooth' });
     }
   });
 })();
