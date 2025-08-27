@@ -82,7 +82,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
           }
         }
     ?>
-    <div class="col-12 col-sm-6 col-lg-4 mb-4 d-flex">
+  <div class="col-6 col-lg-4 mb-4 d-flex">
       <div class="card cat-card shadow-sm h-100 w-100" data-location-name="<?= htmlspecialchars(!empty($cat['location_name']) ? (string)$cat['location_name'] : '') ?>">
         <div class="cat-media">
         <?php
@@ -280,7 +280,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
     function applyFilter() {
       cards.forEach(function(card){
         var locName = (card.getAttribute('data-location-name') || '').trim();
-        var col = card.closest('.col-12, .col-sm-6, .col-lg-4');
+  var col = card.closest('.col-6, .col-12, .col-sm-6, .col-lg-4');
         if (!col) { col = card.parentElement; }
         if (!selectedLoc || locName === selectedLoc) {
           col.classList.remove('d-none');
