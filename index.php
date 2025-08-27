@@ -38,6 +38,8 @@ require_once __DIR__ . '/inc/cloudinary.php';
             <option value="<?= (int)$loc['id'] ?>" <?= $sel === (int)$loc['id'] ? 'selected' : '' ?>><?= htmlspecialchars($loc['name']) ?></option>
           <?php endforeach; ?>
         </select>
+        <?php $tagSel = isset($_GET['tag']) ? trim((string)$_GET['tag']) : ''; ?>
+        <input type="text" name="tag" value="<?= htmlspecialchars($tagSel) ?>" class="form-control me-2" placeholder="#תגית או תגית">
         <button class="btn btn-primary" type="submit">סינון</button>
       </form>
     </div>
@@ -45,8 +47,9 @@ require_once __DIR__ . '/inc/cloudinary.php';
 
   <div class="row" id="cats">
     <?php
-      $locationFilter = isset($_GET['location']) && $_GET['location'] !== '' ? (int)$_GET['location'] : null;
-      $cats = fetch_cats($locationFilter);
+  $locationFilter = isset($_GET['location']) && $_GET['location'] !== '' ? (int)$_GET['location'] : null;
+  $tagFilter = isset($_GET['tag']) && $_GET['tag'] !== '' ? $_GET['tag'] : null;
+  $cats = fetch_cats($locationFilter, $tagFilter);
       if (!$cats) {
           echo '<div class="col-12"><div class="alert alert-info">אין חתולים להצגה עדיין.</div></div>';
       }
@@ -83,8 +86,13 @@ require_once __DIR__ . '/inc/cloudinary.php';
           <?php endif; ?>
           <?php if (!empty($tags)): ?>
             <div class="mt-2" aria-label="תגיות">
+              <?php
+                // לשמירת סינון מיקום קיים
+                $qLoc = $locationFilter ? ('&location=' . (int)$locationFilter) : '';
+              ?>
               <?php foreach ($tags as $tg): ?>
-                <span class="badge rounded-pill text-bg-secondary me-1">#<?= htmlspecialchars($tg) ?></span>
+                <?php $href = '?tag=' . urlencode($tg) . $qLoc; ?>
+                <a href="<?= htmlspecialchars($href) ?>" class="badge rounded-pill text-bg-secondary text-decoration-none me-1">#<?= htmlspecialchars($tg) ?></a>
               <?php endforeach; ?>
             </div>
           <?php endif; ?>

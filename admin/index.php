@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if (isset($_POST['add_cat'])) {
+  if (isset($_POST['add_cat'])) {
         $name = trim($_POST['cat_name'] ?? '');
         $description = trim($_POST['cat_desc'] ?? '');
         $location_id = isset($_POST['cat_location']) && $_POST['cat_location'] !== '' ? (int)$_POST['cat_location'] : null;
@@ -64,9 +64,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = 'החתול נוסף בהצלחה';
         }
     }
+
+  // עריכת תגיות לחתול קיים
+  if (isset($_POST['edit_cat_tags'])) {
+    $cid = isset($_POST['cid']) ? (int)$_POST['cid'] : 0;
+    $tags_input2 = trim($_POST['tags'] ?? '');
+    $tags2 = $tags_input2 !== '' ? parse_tags_input($tags_input2) : [];
+    if ($cid > 0) {
+      if (replace_tags_for_cat($cid, $tags2)) {
+        $success = 'תגיות עודכנו';
+      } else {
+        $errors[] = 'עדכון התגיות נכשל';
+      }
+    }
+  }
 }
 
 $locations = fetch_locations();
+$all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
+// נטען חתולים קיימים להצגת עריכת תגיות
+$cats_for_edit = fetch_cats(null, null);
+$all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
 ?><!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -121,8 +139,21 @@ $locations = fetch_locations();
             </div>
             <div class="mb-3">
               <label class="form-label">תגיות (האשטגים)</label>
-              <input type="text" class="form-control" name="cat_tags" placeholder="#one_eye, #friendly, #kitten">
+              <input id="cat_tags" list="all-tags" type="text" class="form-control" name="cat_tags" placeholder="#one_eye, #friendly, #kitten" autocomplete="off">
+              <datalist id="all-tags">
+                <?php foreach ($all_tags as $tg): ?>
+                  <option value="#<?= htmlspecialchars($tg) ?>"></option>
+                <?php endforeach; ?>
+              </datalist>
               <div class="form-text">הפרד/י ברווחים, פסיקים או נקודה-פסיק. ניתן להקדים # או להשמיט.</div>
+              <?php if (!empty($all_tags)): ?>
+              <div class="mt-2">
+                <div class="small text-muted mb-1">תגיות קיימות (לחיצה מוסיפה לשדה):</div>
+                <?php foreach ($all_tags as $tg): ?>
+                  <button type="button" class="btn btn-sm btn-outline-secondary me-1 mb-1 js-add-tag" data-tag="#<?= htmlspecialchars($tg) ?>">#<?= htmlspecialchars($tg) ?></button>
+                <?php endforeach; ?>
+              </div>
+              <?php endif; ?>
             </div>
             <div class="mb-3">
               <label class="form-label">מיקום</label>
@@ -162,12 +193,53 @@ $locations = fetch_locations();
     </div>
   </div>
 
+  <div class="card mb-4">
+    <div class="card-header">עריכת תגיות לחתולים קיימים</div>
+    <div class="card-body">
+      <?php if (!$cats_for_edit): ?>
+        <div class="text-muted">אין חתולים עדיין.</div>
+      <?php else: ?>
+        <div class="list-group">
+          <?php foreach ($cats_for_edit as $c):
+            $ctags = fetch_tags_for_cat((int)$c['id']);
+            $current = implode(', ', array_map(function($t){ return '#' . $t; }, $ctags));
+          ?>
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="me-3">
+                <div class="fw-semibold"><?= htmlspecialchars($c['name']) ?></div>
+                <?php if (!empty($ctags)): ?>
+                  <div class="small text-muted">תגיות: 
+                    <?php foreach ($ctags as $tg): ?>
+                      <span class="badge text-bg-secondary me-1">#<?= htmlspecialchars($tg) ?></span>
+                    <?php endforeach; ?>
+                  </div>
+                <?php else: ?>
+                  <div class="small text-muted">אין תגיות</div>
+                <?php endif; ?>
+              </div>
+              <form class="ms-auto" method="post">
+                <input type="hidden" name="cid" value="<?= (int)$c['id'] ?>">
+                <div class="input-group" style="max-width: 520px;">
+                  <input list="all-tags" type="text" class="form-control" name="tags" value="<?= htmlspecialchars($current) ?>" placeholder="#one_eye, friendly">
+                  <button class="btn btn-outline-primary" type="submit" name="edit_cat_tags" value="1">עדכון</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </div>
+  </div>
+
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (function(){
   var form = document.getElementById('cat-form');
   if (!form) return;
+  var tagsInput = document.getElementById('cat_tags');
   // מניעת שליחה אוטומטית באמצעות מקש Enter (למעט בתוך textarea)
   form.addEventListener('keydown', function(e){
     var tag = e.target && e.target.tagName ? e.target.tagName.toUpperCase() : '';
@@ -189,6 +261,32 @@ $locations = fetch_locations();
       }
     }
   });
+
+  // הוספת תגית קיימת בלחיצה
+  var tagButtons = document.querySelectorAll('.js-add-tag');
+  tagButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var t = btn.getAttribute('data-tag') || '';
+      if (!tagsInput) return;
+      var current = tagsInput.value.trim();
+      if (!current) { tagsInput.value = t; return; }
+      // אם כבר קיים בדיוק
+      var norm = function(s){ return s.replace(/\s+/g,' ').trim(); };
+      var items = norm(current).split(/[\s,;]+/).filter(Boolean);
+      if (items.indexOf(t) === -1 && items.indexOf(t.replace(/^#/, '')) === -1 && items.indexOf(t.replace(/^#/, '')) === -1) {
+        tagsInput.value = current + ', ' + t;
+      }
+      tagsInput.focus();
+    });
+  });
+
+  // אוטוקומפליט יותר נוח: השארת חלק אחרון לשילוב עם datalist (רשימות מרובות)
+  // בעת הקלדה, נוודא שהדאטאליסט עובד על המקטע האחרון בלבד
+  if (tagsInput) {
+    tagsInput.addEventListener('input', function(){
+      // native datalist will still show suggestions; no-op here
+    });
+  }
 })();
 </script>
 </body>

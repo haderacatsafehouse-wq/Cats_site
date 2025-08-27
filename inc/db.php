@@ -127,18 +127,26 @@ function add_cat($name, $description, $location_id) {
     return (int)get_db()->lastInsertId();
 }
 
-function fetch_cats($location_id = null) {
+function fetch_cats($location_id = null, $tag = null) {
+    $pdo = get_db();
+    $where = [];
+    $params = [];
+    $join = '';
     if ($location_id) {
-        $stmt = get_db()->prepare('SELECT c.*, l.name AS location_name
-                                   FROM cats c LEFT JOIN locations l ON c.location_id = l.id
-                                   WHERE c.location_id = :lid
-                                   ORDER BY c.created_at DESC');
-        $stmt->execute([':lid' => $location_id]);
-    } else {
-        $stmt = get_db()->query('SELECT c.*, l.name AS location_name
-                                  FROM cats c LEFT JOIN locations l ON c.location_id = l.id
-                                  ORDER BY c.created_at DESC');
+        $where[] = 'c.location_id = :lid';
+        $params[':lid'] = $location_id;
     }
+    if ($tag) {
+        // הצטרפות לטבלאות תגיות
+        $join .= ' INNER JOIN cat_tags ct ON ct.cat_id = c.id INNER JOIN tags t ON t.id = ct.tag_id ';
+        $where[] = 't.name = :tname';
+        $params[':tname'] = normalize_tag($tag);
+    }
+    $sql = 'SELECT c.*, l.name AS location_name FROM cats c LEFT JOIN locations l ON c.location_id = l.id' . $join;
+    if ($where) { $sql .= ' WHERE ' . implode(' AND ', $where); }
+    $sql .= ' ORDER BY c.created_at DESC';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -284,4 +292,34 @@ function fetch_tags_for_cat($cat_id) {
     $out = [];
     foreach ($rows as $r) { $out[] = (string)$r['name']; }
     return $out;
+}
+
+function fetch_all_tags() {
+    $stmt = get_db()->query('SELECT name FROM tags ORDER BY name');
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $out = [];
+    foreach ($rows as $r) { $out[] = (string)$r['name']; }
+    return $out;
+}
+
+function replace_tags_for_cat($cat_id, array $tags) {
+    $pdo = get_db();
+    $pdo->beginTransaction();
+    try {
+        $del = $pdo->prepare('DELETE FROM cat_tags WHERE cat_id = :c');
+        $del->execute([':c' => (int)$cat_id]);
+        if ($tags) {
+            $ins = $pdo->prepare('INSERT OR IGNORE INTO cat_tags(cat_id, tag_id) VALUES (:c, :t)');
+            foreach ($tags as $tname) {
+                $tid = get_or_create_tag_id($tname);
+                if ($tid) { $ins->execute([':c' => (int)$cat_id, ':t' => $tid]); }
+            }
+        }
+        $pdo->commit();
+        return true;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) { $pdo->rollBack(); }
+        error_log('replace_tags_for_cat failed: ' . $e->getMessage());
+        return false;
+    }
 }
