@@ -151,10 +151,14 @@ function fetch_cats($location_id = null, $tag = null) {
 }
 
 function add_media($cat_id, $type, $drive_file_id, $local_path) {
+    // נרמל סוג למדיה תקנית: 'image' או 'video'
+    $t = strtolower(trim((string)$type));
+    if (strpos($t, 'image') === 0) { $t = 'image'; }
+    elseif (strpos($t, 'video') === 0) { $t = 'video'; }
     $stmt = get_db()->prepare('INSERT INTO media(cat_id, type, drive_file_id, local_path) VALUES (:c, :t, :df, :lp)');
     return $stmt->execute([
-        ':c' => $cat_id,
-        ':t' => $type,
+        ':c' => (int)$cat_id,
+        ':t' => $t,
         ':df' => $drive_file_id,
         ':lp' => $local_path,
     ]);

@@ -68,12 +68,13 @@ require_once __DIR__ . '/inc/cloudinary.php';
         foreach ($media as $m) {
           $src = isset($m['local_path']) ? (string)$m['local_path'] : '';
           if (!$src) { continue; }
-          if ($m['type'] === 'image') {
+          $t = isset($m['type']) ? strtolower(trim((string)$m['type'])) : '';
+          if (strpos($t, 'image') === 0) {
             if (strpos($src, 'res.cloudinary.com') !== false) {
               $src = cloudinary_transform_image_url($src);
             }
             $modalMedia[] = ['type' => 'image', 'src' => $src];
-          } elseif ($m['type'] === 'video') {
+          } elseif (strpos($t, 'video') === 0) {
             $modalMedia[] = ['type' => 'video', 'src' => $src];
           }
         }
@@ -84,7 +85,8 @@ require_once __DIR__ . '/inc/cloudinary.php';
         <?php
           $imageShown = false;
           foreach ($media as $m) {
-            if ($m['type'] === 'image') {
+            $t = isset($m['type']) ? strtolower(trim((string)$m['type'])) : '';
+            if (strpos($t, 'image') === 0) {
               $src = $m['local_path'] ?? '';
               if ($src) {
                 // אם זה URL של Cloudinary נבקש גרסה קלה יותר
@@ -99,7 +101,8 @@ require_once __DIR__ . '/inc/cloudinary.php';
           }
           if (!$imageShown) {
             foreach ($media as $m) {
-              if ($m['type'] === 'video') {
+              $t = isset($m['type']) ? strtolower(trim((string)$m['type'])) : '';
+              if (strpos($t, 'video') === 0) {
                 $vsrc = $m['local_path'] ?? '';
                 if ($vsrc) {
                   echo '<video controls preload="metadata"><source src="' . htmlspecialchars($vsrc) . '"></video>';
