@@ -21,13 +21,16 @@ require_once __DIR__ . '/inc/cloudinary.php';
       <img class="brand-logo" src="https://www.haderacats.org.il/wp-content/uploads/2025/07/Untitled12.png" alt="לוגו" loading="eager">
       <span class="ms-2"><?= htmlspecialchars(SITE_TITLE) ?></span>
     </span>
+    <div class="ms-auto">
+      <a class="btn btn-outline-light btn-sm" href="/cat/admin/">אזור ניהול (מוגן)</a>
+    </div>
   </div>
 </nav>
 <div class="container">
   <?php $locs = fetch_locations(); ?>
   <div class="row mb-2">
     <div class="col-12 col-md-6">
-      <h1 class="h4">רשימת החתולים במקלט</h1>
+      <h1 class="h4"></h1>
     </div>
     <div class="col-12 col-md-6">
       <form class="d-flex" method="get">
@@ -146,9 +149,6 @@ require_once __DIR__ . '/inc/cloudinary.php';
     <?php endforeach; ?>
   </div>
 
-  <div class="mt-4">
-    <a class="btn btn-outline-secondary" href="/cat/admin/">אזור ניהול (מוגן)</a>
-  </div>
 </div>
 
 <!-- מודל להצגת פרטי חתול -->
