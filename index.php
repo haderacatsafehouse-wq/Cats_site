@@ -12,17 +12,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
     <title><?= htmlspecialchars(SITE_TITLE) ?></title>
     <!-- Bootstrap 5 via CDN (תואם UI מודרני; ניתן להחליף ל-RTL מלא במידת הצורך) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
-    <style>
-        body { background: #f8f9fa; }
-  /* כרטיסים בגובה אחיד ומדיה בגודל עקבי */
-  .cat-card { display: flex; flex-direction: column; }
-  .cat-media { width: 100%; aspect-ratio: 4 / 3; background: #e9ecef; overflow: hidden; }
-  .cat-media img,
-  .cat-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .cat-card .card-body { display: flex; flex-direction: column; }
-  /* אפשרות קליק לפתיחת מודל */
-  .cat-card { cursor: pointer; }
-    </style>
+  <link href="inc/theme.css" rel="stylesheet">
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">

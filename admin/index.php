@@ -79,6 +79,7 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ניהול - <?= htmlspecialchars(SITE_TITLE) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <link href="../inc/theme.css" rel="stylesheet">
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">

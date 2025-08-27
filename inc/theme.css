@@ -1,0 +1,102 @@
+/* Cats Sanctuary Theme
+   Primary palette:
+   - Primary (main): #6900ba
+   - Deep: #4a0084
+   - Accent 1: #9e4c9e
+   - Accent 2: #88629c
+   - Accent 3: #a3759b
+*/
+
+:root {
+  --color-primary: #6900ba;
+  --color-primary-deep: #4a0084;
+  --color-accent-1: #9e4c9e;
+  --color-accent-2: #88629c;
+  --color-accent-3: #a3759b;
+  --color-bg: #f7f2fb; /* soft background */
+  --color-surface: #ffffff;
+  --color-text: #222222;
+  --color-muted: #6c757d;
+
+  /* Bootstrap palette hooks */
+  --bs-primary: var(--color-primary);
+  --bs-link-color: var(--color-primary);
+  --bs-link-hover-color: var(--color-primary-deep);
+}
+
+/* Base */
+html, body { height: 100%; }
+body {
+  background: radial-gradient(1200px 800px at 10% -10%, #f0e6f8 0%, transparent 60%),
+              radial-gradient(1200px 800px at 110% 10%, #efe3f6 0%, transparent 60%),
+              var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Navbar: keep dark contrast but with our primary */
+.navbar.bg-dark { background-color: var(--color-primary) !important; }
+.navbar-dark .navbar-brand,
+.navbar-dark .navbar-text,
+.navbar-dark .nav-link { color: #fff; }
+.navbar-dark .nav-link:hover,
+.navbar-dark .nav-link:focus { color: #e9d8ff; }
+
+/* Buttons - Bootstrap 5.3 uses CSS vars we can override per component */
+.btn-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--color-primary);
+  --bs-btn-border-color: var(--color-primary);
+  --bs-btn-hover-bg: var(--color-primary-deep);
+  --bs-btn-hover-border-color: var(--color-primary-deep);
+  --bs-btn-focus-shadow-rgb: 105, 0, 186; /* from #6900ba */
+  --bs-btn-active-bg: var(--color-primary-deep);
+  --bs-btn-active-border-color: var(--color-primary-deep);
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--color-primary);
+  --bs-btn-border-color: var(--color-primary);
+  --bs-btn-hover-bg: var(--color-primary);
+  --bs-btn-hover-border-color: var(--color-primary);
+  --bs-btn-hover-color: #fff;
+}
+
+/* Badges */
+.badge.text-bg-secondary {
+  background-color: var(--color-accent-1) !important;
+  color: #fff !important;
+}
+
+/* Links */
+a { color: var(--color-primary); }
+a:hover { color: var(--color-primary-deep); }
+
+/* Cards and media */
+.card { border: 1px solid rgba(105,0,186,0.08); }
+.card .card-header { background: linear-gradient(180deg, rgba(105,0,186,0.06), transparent); }
+.cat-card { display: flex; flex-direction: column; cursor: pointer; }
+.cat-card .card-body { display: flex; flex-direction: column; }
+.cat-media { width: 100%; aspect-ratio: 4 / 3; background: #e9e2f1; overflow: hidden; }
+.cat-media img,
+.cat-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Location filter pills (if rendered) */
+.location-pill { 
+  --pill-bg: rgba(105,0,186,0.08);
+  --pill-fg: var(--color-primary);
+  background: var(--pill-bg);
+  color: var(--pill-fg);
+  border: 1px solid rgba(105,0,186,0.15);
+  border-radius: 999px;
+  padding: .35rem .75rem;
+  font-weight: 500;
+}
+.location-pill.active,
+.location-pill:hover { background: var(--color-primary); color: #fff; }
+
+/* Modal tweaks */
+.modal-content { border-radius: .75rem; }
+.modal-header { background: linear-gradient(180deg, rgba(105,0,186,0.06), transparent); }
+
+/* Utilities */
+.text-muted { color: var(--color-muted) !important; }
