@@ -8,16 +8,27 @@ header('Content-Type: application/json; charset=UTF-8');
 
 $q = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
 $limit = isset($_GET['limit']) ? max(1, min(200, (int)$_GET['limit'])) : 200;
+// ניתן להעביר exclude=1,2,3 כדי שלא יופיעו בתוצאות (לדוגמה החתול הנוכחי וקישורים שנבחרו כבר)
+$exclude = isset($_GET['exclude']) ? (string)$_GET['exclude'] : '';
+$excludeIds = [];
+if ($exclude !== '') {
+    foreach (preg_split('/[\s,;]+/', $exclude, -1, PREG_SPLIT_NO_EMPTY) as $tok) {
+        $v = (int)$tok; if ($v > 0) { $excludeIds[$v] = true; }
+    }
+}
 
 try {
-    $cats = fetch_cats();
     if ($q !== '') {
-        $ql = function_exists('mb_strtolower') ? mb_strtolower($q, 'UTF-8') : strtolower($q);
-        $cats = array_filter($cats, function($c) use ($ql) {
-            $hay = (string)($c['name'] . ' ' . ($c['description'] ?? '') . ' ' . ($c['location_name'] ?? ''));
-            $hay = function_exists('mb_strtolower') ? mb_strtolower($hay, 'UTF-8') : strtolower($hay);
-            return strpos($hay, $ql) !== false;
-        });
+        // חיפוש בצד השרת (פאזי) — יעיל ומסנכרן עם דף הבית
+        $cats = search_cats_fuzzy($q, $limit * 2);
+    } else {
+        $cats = fetch_cats();
+    }
+    // סינון מזהים מוחרגים
+    if ($excludeIds) {
+        $cats = array_values(array_filter($cats, function($c) use ($excludeIds){
+            return empty($excludeIds[(int)$c['id']]);
+        }));
     }
     // סדר וחתוך ל-limit
     $cats = array_slice(array_values($cats), 0, $limit);

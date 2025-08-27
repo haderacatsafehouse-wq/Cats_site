@@ -67,6 +67,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
       foreach ($cats as $cat):
         $media = fetch_media_for_cat((int)$cat['id']);
         $tags = function_exists('fetch_tags_for_cat') ? fetch_tags_for_cat((int)$cat['id']) : [];
+  $linked = function_exists('fetch_linked_cats_for_cat') ? fetch_linked_cats_for_cat((int)$cat['id']) : [];
         // מדיה למודל (כל הפריטים)
         $modalMedia = [];
         foreach ($media as $m) {
@@ -143,6 +144,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
             'description' => !empty($cat['description']) ? (string)$cat['description'] : '',
             'tags' => array_values($tags),
             'media' => $modalMedia,
+            'linked' => array_map(function($c){ return ['id'=>(int)$c['id'], 'name'=>(string)$c['name'], 'location'=>isset($c['location_name'])?(string)$c['location_name']:null]; }, $linked),
           ];
           $catJsonStr = json_encode($catJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
           if ($catJsonStr === false) { $catJsonStr = '{}'; }
@@ -254,6 +256,19 @@ require_once __DIR__ . '/inc/cloudinary.php';
       if (data.description) {
         html += '<p>' + escapeHtml(data.description).replace(/\n/g, '<br>') + '</p>';
       }
+      // קישורים לחתולים אחרים
+      if (Array.isArray(data.linked) && data.linked.length) {
+        html += '<div class="mt-2">'
+             +   '<div class="fw-semibold mb-1">חתולים קשורים:</div>'
+             +   '<div class="d-flex flex-wrap gap-2">';
+        for (var i = 0; i < data.linked.length; i++) {
+          var lc = data.linked[i];
+          var subtitle = lc.location ? (' — ' + lc.location) : '';
+          html += '<button type="button" class="btn btn-sm btn-outline-primary js-linked" data-id="'+lc.id+'">#'+lc.id+' '+escapeHtml(lc.name)+'</button>';
+        }
+        html +=   '</div>'
+             + '</div>';
+      }
     if (Array.isArray(data.tags) && data.tags.length) {
         html += '<div class="mt-2">';
         for (var t = 0; t < data.tags.length; t++) {
@@ -264,6 +279,28 @@ require_once __DIR__ . '/inc/cloudinary.php';
       }
 
       body.innerHTML = html;
+      // קליקים על קישורי חתולים: פתיחת מודל של החתול הנבחר
+      var btns = body.querySelectorAll('.js-linked');
+      btns.forEach(function(b){
+        b.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          var id = parseInt(b.getAttribute('data-id')||'0',10);
+          if (!id) return;
+          // מצא את כרטיס החתול עם נתוני JSON תואמים
+          var targetCard = null;
+          document.querySelectorAll('.cat-card').forEach(function(c){
+            if (targetCard) return;
+            var s = c.querySelector('script.cat-data');
+            if (!s) return;
+            try { var d = JSON.parse(s.textContent||'{}'); if (d && d.id === id) { targetCard = c; } } catch(e){}
+          });
+          if (targetCard) {
+            // סגור מודל נוכחי ופתח של היעד
+            var m = bootstrap.Modal.getOrCreateInstance(modalEl); m.hide();
+            setTimeout(function(){ targetCard.click(); }, 200);
+          }
+        });
+      });
       var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
       modal.show();
     });

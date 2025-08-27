@@ -80,6 +80,16 @@ function init_schema($pdo) {
         FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
     )');
 
+    // קשרי "חתול-חתול" (self-relation) — סימטרי: נשמר פעם אחת בלבד לפי סדר עולה
+    $pdo->exec('CREATE TABLE IF NOT EXISTS cat_links (
+        cat_id_a INTEGER NOT NULL,
+        cat_id_b INTEGER NOT NULL,
+        PRIMARY KEY (cat_id_a, cat_id_b),
+        FOREIGN KEY(cat_id_a) REFERENCES cats(id) ON DELETE CASCADE,
+        FOREIGN KEY(cat_id_b) REFERENCES cats(id) ON DELETE CASCADE,
+        CHECK (cat_id_a < cat_id_b)
+    )');
+
     // סנכרון מיקומים מקובץ JSON חיצוני לבסיס הנתונים (לצורך שמירת מזהים ויחסים)
     try {
         $locations = read_locations_from_file();
@@ -245,6 +255,7 @@ function delete_cat($cat_id) {
         $delM = $pdo->prepare('DELETE FROM media WHERE cat_id = :cid');
         $delM->execute([':cid' => (int)$cat_id]);
         // cat_tags יימחקו אוטומטית בזכות ON DELETE CASCADE
+    // cat_links יימחקו אוטומטית (ON DELETE CASCADE)
         $delC = $pdo->prepare('DELETE FROM cats WHERE id = :cid');
         $delC->execute([':cid' => (int)$cat_id]);
         $pdo->commit();
@@ -432,6 +443,84 @@ function sqlite_like_escape($s) {
     $s = str_replace('\\', '\\\\', $s); // \ => \\\\\n+    $s = str_replace('%', '\\%', $s);
     $s = str_replace('_', '\\_', $s);
     return $s;
+}
+
+// ---------------------------------
+// קישורים בין חתולים (self relation)
+// ---------------------------------
+
+// מנרמל זוג מזהים כך שהקטן ראשון; אם שווים, מחזיר null
+function normalize_link_pair($a, $b) {
+    $a = (int)$a; $b = (int)$b;
+    if ($a === $b || $a <= 0 || $b <= 0) { return null; }
+    return ($a < $b) ? [$a, $b] : [$b, $a];
+}
+
+// הוספת קישורים עבור חתול למערך מזהים (ללא מחיקת הקיימים)
+function add_links_for_cat($cat_id, array $linkedIds) {
+    if (!$linkedIds) { return; }
+    $pdo = get_db();
+    $ins = $pdo->prepare('INSERT OR IGNORE INTO cat_links(cat_id_a, cat_id_b) VALUES (:a, :b)');
+    foreach ($linkedIds as $otherId) {
+        $pair = normalize_link_pair($cat_id, $otherId);
+        if ($pair === null) { continue; }
+        $ins->execute([':a' => $pair[0], ':b' => $pair[1]]);
+    }
+}
+
+// החלפת כלל הקישורים של חתול לרשימה נתונה
+function replace_links_for_cat($cat_id, array $linkedIds) {
+    $pdo = get_db();
+    $pdo->beginTransaction();
+    try {
+        $del = $pdo->prepare('DELETE FROM cat_links WHERE cat_id_a = :c OR cat_id_b = :c');
+        $del->execute([':c' => (int)$cat_id]);
+        if ($linkedIds) {
+            $ins = $pdo->prepare('INSERT OR IGNORE INTO cat_links(cat_id_a, cat_id_b) VALUES (:a, :b)');
+            foreach ($linkedIds as $otherId) {
+                $pair = normalize_link_pair($cat_id, $otherId);
+                if ($pair === null) { continue; }
+                $ins->execute([':a' => $pair[0], ':b' => $pair[1]]);
+            }
+        }
+        $pdo->commit();
+        return true;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) { $pdo->rollBack(); }
+        error_log('replace_links_for_cat failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
+// החזרת מזהי חתולים המקושרים לחתול נתון
+function fetch_linked_ids_for_cat($cat_id) {
+    $pdo = get_db();
+    $sql = 'SELECT cat_id_b AS id FROM cat_links WHERE cat_id_a = :c
+            UNION
+            SELECT cat_id_a AS id FROM cat_links WHERE cat_id_b = :c';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':c' => (int)$cat_id]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $out = [];
+    foreach ($rows as $r) { $out[] = (int)$r['id']; }
+    return $out;
+}
+
+// החזרת פרטי חתולים מקושרים (id, name, location_name אופציונלית)
+function fetch_linked_cats_for_cat($cat_id) {
+    $pdo = get_db();
+    $sql = 'SELECT c.id, c.name, l.name AS location_name
+            FROM cats c
+            LEFT JOIN locations l ON l.id = c.location_id
+            WHERE c.id IN (
+                SELECT cat_id_b FROM cat_links WHERE cat_id_a = :c
+                UNION
+                SELECT cat_id_a FROM cat_links WHERE cat_id_b = :c
+            )
+            ORDER BY c.created_at DESC';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':c' => (int)$cat_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 /**

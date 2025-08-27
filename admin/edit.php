@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $desc = trim($_POST['description'] ?? '');
         $loc  = isset($_POST['location_id']) && $_POST['location_id'] !== '' ? (int)$_POST['location_id'] : null;
         $tags_input = trim($_POST['tags'] ?? '');
+  $links_input = isset($_POST['linked_ids']) ? (string)$_POST['linked_ids'] : '';
 
         if ($cid <= 0) {
             $errors[] = 'מזהה חתול שגוי';
@@ -35,6 +36,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!replace_tags_for_cat($cid, $tags)) {
                     $errors[] = 'עדכון תגיות נכשל';
                 }
+        // קישורים
+        $linkIdsSet = [];
+        foreach (preg_split('/[\s,;]+/', $links_input, -1, PREG_SPLIT_NO_EMPTY) as $tok) {
+          $v = (int)$tok; if ($v > 0) { $linkIdsSet[$v] = true; }
+        }
+        if (!replace_links_for_cat($cid, array_keys($linkIdsSet))) {
+          $errors[] = 'עדכון קישורים נכשל';
+        }
                 // העלאת מדיה חדשה (אופציונלי)
                 if (!empty($_FILES['media_files']['name'][0])) {
                     $count = count($_FILES['media_files']['name']);
@@ -130,6 +139,7 @@ if ($q !== '') {
 $selected = $selected_id > 0 ? fetch_cat_by_id($selected_id) : null;
 $selected_tags = $selected ? fetch_tags_for_cat($selected_id) : [];
 $selected_media = $selected ? fetch_media_for_cat($selected_id) : [];
+$selected_links = $selected ? fetch_linked_cats_for_cat($selected_id) : [];
 $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
 
 ?><!DOCTYPE html>
@@ -231,6 +241,25 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
                   <?php endforeach; ?>
                 </datalist>
                 <div class="form-text">הפרד/י ברווחים, פסיקים או נקודה-פסיק. ניתן להקדים # או להשמיט.</div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">חתולים קשורים</label>
+                <input id="linked_search" type="search" class="form-control" placeholder="חיפוש והוספה של חתולים קשורים" autocomplete="off">
+                <div id="linked_suggest" class="list-group mt-1" style="max-height:220px; overflow:auto; display:none;"></div>
+                <div id="linked_selected" class="mt-2 d-flex flex-wrap gap-2" aria-live="polite">
+                  <?php if ($selected_links): foreach ($selected_links as $lc): ?>
+                    <span class="badge text-bg-primary d-flex align-items-center" style="gap:.25rem;">
+                      <span>#<?= (int)$lc['id'] ?> <?= htmlspecialchars($lc['name']) ?></span>
+                      <button type="button" class="btn-close btn-close-white ms-1 js-remove-link" aria-label="הסר" data-id="<?= (int)$lc['id'] ?>"></button>
+                    </span>
+                  <?php endforeach; else: ?>
+                    <span class="text-muted">לא נבחרו קישורים</span>
+                  <?php endif; ?>
+                </div>
+                <?php $linkIds = $selected_links ? implode(',', array_map(function($x){ return (string)(int)$x['id']; }, $selected_links)) : ''; ?>
+                <input id="linked_ids" type="hidden" name="linked_ids" value="<?= htmlspecialchars($linkIds) ?>">
+                <div class="form-text">ניתן לקשר מספר חתולים. חפשו לפי שם/תיאור/מיקום ולחצו להוספה.</div>
               </div>
 
               <div class="mb-3">
@@ -372,6 +401,86 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
   // initial load
   doSearch(<?= json_encode($q, JSON_UNESCAPED_UNICODE) ?>);
   // Note: Scrolling is handled after the list renders (renderList)
+})();
+</script>
+<script>
+// בחירת חתולים קשורים בעמוד עריכה
+(function(){
+  var input = document.getElementById('linked_search');
+  var list = document.getElementById('linked_suggest');
+  var wrap = document.getElementById('linked_selected');
+  var hidden = document.getElementById('linked_ids');
+  var currentId = <?= (int)$selected_id ?>;
+  if (!input || !list || !wrap || !hidden) return;
+
+  function escapeHtml(str){
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // בונים סט קיים מה-HIDDEN והמרקר בדף
+  var selected = {};
+  (hidden.value || '').split(/[,\s;]+/).forEach(function(tok){ var v=parseInt(tok||'0',10); if (v>0) selected[v]=true; });
+
+  function updateHidden(){
+    var ids = Object.keys(selected).map(function(k){ return parseInt(k,10) || 0; }).filter(Boolean);
+    hidden.value = ids.join(',');
+  }
+  function attachRemove(){
+    wrap.querySelectorAll('.js-remove-link').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = parseInt(btn.getAttribute('data-id')||'0',10);
+        if (id && selected[id]) { delete selected[id]; updateHidden(); btn.parentElement.remove(); if (!wrap.querySelector('.badge')) { wrap.innerHTML = '<span class="text-muted">לא נבחרו קישורים</span>'; } }
+      });
+    });
+  }
+  attachRemove();
+
+  function hideSuggest(){ list.style.display = 'none'; list.innerHTML=''; }
+  function showSuggest(items){
+    if (!items || !items.length) { hideSuggest(); return; }
+    var html = items.map(function(c){
+      var img = c.thumb_url ? '<img src="'+encodeURI(c.thumb_url)+'" class="me-2" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" alt="">' : '<span class="me-2" style="display:inline-block;width:28px;height:28px;border-radius:50%;background:#e9ecef;border:1px solid #dee2e6;"></span>';
+      var loc = c.location_name ? '<div class="small text-muted">'+escapeHtml(c.location_name)+'</div>' : '';
+      return '<button type="button" class="list-group-item list-group-item-action d-flex align-items-center" data-id="'+c.id+'" data-name="'+escapeHtml(c.name)+'">'+ img + '<div class="flex-fill"><div class="fw-semibold">#'+c.id+' — '+escapeHtml(c.name)+'</div>'+loc+'</div></button>';
+    }).join('');
+    list.innerHTML = html; list.style.display = 'block';
+    list.querySelectorAll('.list-group-item').forEach(function(it){
+      it.addEventListener('click', function(){
+        var id = parseInt(it.getAttribute('data-id')||'0',10);
+        if (id && !selected[id]) {
+          selected[id] = true; updateHidden();
+          // append chip
+          if (wrap.querySelector('.text-muted')) { wrap.innerHTML = ''; }
+          var span = document.createElement('span');
+          span.className = 'badge text-bg-primary d-flex align-items-center'; span.style.gap='.25rem';
+          span.innerHTML = '<span>#'+id+' '+escapeHtml(it.getAttribute('data-name')||'')+'</span><button type="button" class="btn-close btn-close-white ms-1 js-remove-link" aria-label="הסר" data-id="'+id+'"></button>';
+          wrap.appendChild(span);
+          attachRemove();
+        }
+        input.value = ''; hideSuggest(); input.focus();
+      });
+    });
+  }
+
+  var inflight = null, debTimer = null;
+  function doSearch(q){
+    var excludeIds = Object.keys(selected);
+    if (currentId) excludeIds.push(String(currentId));
+    var url = 'search_cats.php?q=' + encodeURIComponent(q||'') + '&limit=20' + (excludeIds.length?('&exclude='+encodeURIComponent(excludeIds.join(','))):'');
+    if (inflight && typeof inflight.abort === 'function') { inflight.abort(); }
+    var ctrl = new AbortController(); inflight = ctrl;
+    fetch(url, { signal: ctrl.signal }).then(function(r){ return r.json(); }).then(function(d){ if (d && d.success) { showSuggest(d.items||[]); } }).catch(function(err){ if (err && err.name === 'AbortError') return; hideSuggest(); });
+  }
+  function debounced(){ if (debTimer) clearTimeout(debTimer); debTimer = setTimeout(function(){ var v=input.value.trim(); if (v) doSearch(v); else hideSuggest(); }, 200); }
+
+  input.addEventListener('input', debounced);
+  input.addEventListener('blur', function(){ setTimeout(hideSuggest, 200); });
 })();
 </script>
 </body>

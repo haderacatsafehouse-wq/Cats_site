@@ -22,6 +22,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tags = parse_tags_input($tags_input);
     if ($tags) { add_tags_for_cat($catId, $tags); }
   }
+  // קישורים לחתולים אחרים (אופציונלי)
+  if (isset($_POST['linked_ids'])) {
+    $linkedStr = (string)$_POST['linked_ids'];
+    $ids = [];
+    foreach (preg_split('/[\s,;]+/', $linkedStr, -1, PREG_SPLIT_NO_EMPTY) as $tok) {
+      $v = (int)$tok; if ($v > 0) { $ids[$v] = true; }
+    }
+    if ($ids) { add_links_for_cat($catId, array_keys($ids)); }
+  }
   // טיפול במדיה (Cloudinary בלבד)
     if (!empty($_FILES['media_files']['name'][0])) {
                 $count = count($_FILES['media_files']['name']);
@@ -116,6 +125,14 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
               <?php endif; ?>
             </div>
             <div class="mb-3">
+              <label class="form-label">חתולים קשורים (אופציונלי)</label>
+              <input id="linked_search" type="search" class="form-control" placeholder="חיפוש והוספה של חתולים קשורים" autocomplete="off">
+              <div id="linked_suggest" class="list-group mt-1" style="max-height:220px; overflow:auto; display:none;"></div>
+              <div id="linked_selected" class="mt-2 d-flex flex-wrap gap-2" aria-live="polite"></div>
+              <input id="linked_ids" type="hidden" name="linked_ids" value="">
+              <div class="form-text">ניתן לקשר מספר חתולים. חפשו לפי שם/תיאור/מיקום ולחצו להוספה.</div>
+            </div>
+            <div class="mb-3">
               <label class="form-label">מיקום</label>
               <select class="form-select" name="cat_location">
                 <option value="">ללא</option>
@@ -190,6 +207,94 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
       // native datalist will still show suggestions; no-op here
     });
   }
+})();
+</script>
+<script>
+// בחירת חתולים קשורים בעמוד הוספה
+(function(){
+  var input = document.getElementById('linked_search');
+  var list = document.getElementById('linked_suggest');
+  var wrap = document.getElementById('linked_selected');
+  var hidden = document.getElementById('linked_ids');
+  if (!input || !list || !wrap || !hidden) return;
+
+  function escapeHtml(str){
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  var selected = {}; // id -> {id,name,thumb_url}
+
+  function updateHidden(){
+    var ids = Object.keys(selected).map(function(k){ return parseInt(k,10) || 0; }).filter(Boolean);
+    hidden.value = ids.join(',');
+  }
+  function renderSelected(){
+    var html = Object.keys(selected).map(function(k){
+      var c = selected[k];
+      var title = c.location_name ? (' — ' + c.location_name) : '';
+      var img = c.thumb_url ? '<img src="'+encodeURI(c.thumb_url)+'" class="me-1" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" alt="">' : '';
+      return '<span class="badge text-bg-primary d-flex align-items-center" style="gap:.25rem;">'+ img +
+             '<span>#'+c.id+' '+escapeHtml(c.name)+'</span>'+
+             '<button type="button" class="btn-close btn-close-white ms-1" aria-label="הסר" data-id="'+c.id+'"></button>'+
+             '</span>';
+    }).join('');
+    wrap.innerHTML = html || '<span class="text-muted">לא נבחרו קישורים</span>';
+    wrap.querySelectorAll('.btn-close').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = parseInt(btn.getAttribute('data-id')||'0',10);
+        if (id && selected[id]) { delete selected[id]; updateHidden(); renderSelected(); }
+      });
+    });
+  }
+
+  function hideSuggest(){ list.style.display = 'none'; list.innerHTML=''; }
+  function showSuggest(items){
+    if (!items || !items.length) { hideSuggest(); return; }
+    var html = items.map(function(c){
+      var img = c.thumb_url ? '<img src="'+encodeURI(c.thumb_url)+'" class="me-2" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" alt="">' : '<span class="me-2" style="display:inline-block;width:28px;height:28px;border-radius:50%;background:#e9ecef;border:1px solid #dee2e6;"></span>';
+      var loc = c.location_name ? '<div class="small text-muted">'+escapeHtml(c.location_name)+'</div>' : '';
+      return '<button type="button" class="list-group-item list-group-item-action d-flex align-items-center" data-id="'+c.id+'" data-name="'+escapeHtml(c.name)+'" data-loc="'+escapeHtml(c.location_name||'')+'" data-thumb="'+(c.thumb_url?encodeURI(c.thumb_url):'')+'">'
+             + img + '<div class="flex-fill"><div class="fw-semibold">#'+c.id+' — '+escapeHtml(c.name)+'</div>'+loc+'</div></button>';
+    }).join('');
+    list.innerHTML = html; list.style.display = 'block';
+    list.querySelectorAll('button[list-group-item]').forEach(function(btn){
+      // no-op safety; selector above might not match correctly in some engines
+    });
+    list.querySelectorAll('.list-group-item').forEach(function(it){
+      it.addEventListener('click', function(){
+        var id = parseInt(it.getAttribute('data-id')||'0',10);
+        var nm = it.getAttribute('data-name')||'';
+        var loc = it.getAttribute('data-loc')||'';
+        var th = it.getAttribute('data-thumb')||'';
+        if (id && !selected[id]) { selected[id] = {id:id, name:nm, location_name:loc, thumb_url:th}; updateHidden(); renderSelected(); }
+        input.value = ''; hideSuggest(); input.focus();
+      });
+    });
+  }
+
+  var inflight = null, debTimer = null;
+  function doSearch(q){
+    var exclude = Object.keys(selected).join(',');
+    var url = 'search_cats.php?q=' + encodeURIComponent(q||'') + '&limit=20' + (exclude?('&exclude='+encodeURIComponent(exclude)):'');
+    if (inflight && typeof inflight.abort === 'function') { inflight.abort(); }
+    var ctrl = new AbortController(); inflight = ctrl;
+    fetch(url, { signal: ctrl.signal }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.success) { showSuggest(d.items||[]); }
+    }).catch(function(err){ if (err && err.name === 'AbortError') return; hideSuggest(); });
+  }
+  function debounced(){ if (debTimer) clearTimeout(debTimer); debTimer = setTimeout(function(){ var v=input.value.trim(); if (v) doSearch(v); else hideSuggest(); }, 200); }
+
+  input.addEventListener('input', debounced);
+  input.addEventListener('blur', function(){ setTimeout(hideSuggest, 200); });
+
+  // init empty
+  updateHidden(); renderSelected();
 })();
 </script>
 </body>
