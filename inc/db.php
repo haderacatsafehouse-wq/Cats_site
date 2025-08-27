@@ -166,6 +166,14 @@ function fetch_media_for_cat($cat_id) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// שליפת מדיה בודדת לפי מזהה
+function fetch_media_by_id($media_id) {
+    $stmt = get_db()->prepare('SELECT * FROM media WHERE id = :id');
+    $stmt->execute([':id' => (int)$media_id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
 // שליפת חתול בודד לפי מזהה
 function fetch_cat_by_id($cat_id) {
     $stmt = get_db()->prepare('SELECT c.*, l.name AS location_name FROM cats c LEFT JOIN locations l ON c.location_id = l.id WHERE c.id = :id');

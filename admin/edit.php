@@ -68,25 +68,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'delete_media') {
-        $mid = isset($_POST['media_id']) ? (int)$_POST['media_id'] : 0;
-        $cid = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-        if ($mid > 0) { delete_media($mid); }
-        $selected_id = $cid;
-        $success = $success ?: 'המדיה הוסרה';
-    }
-
-    if ($action === 'delete_cat') {
-        $cid = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-        if ($cid > 0) {
-            if (delete_cat($cid)) {
-                $success = 'החתול נמחק';
-                $selected_id = 0; // חוזרים לבחירה
-            } else {
-                $errors[] = 'מחיקת החתול נכשלה';
-            }
+  if ($action === 'delete_media') {
+    $mid = isset($_POST['media_id']) ? (int)$_POST['media_id'] : 0;
+    $cid = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    if ($mid > 0) {
+      $m = fetch_media_by_id($mid);
+      if ($m && !empty($m['drive_file_id'])) {
+        // נסה למחוק מה-Cloudinary (image/video)
+        $rt = ($m['type'] === 'video') ? 'video' : 'image';
+        $res = cloudinary_destroy($m['drive_file_id'], $rt);
+        if (!($res['success'] ?? false)) {
+          // לא חוסם; מדווח בלוג וממשיך למחוק מהרשומה
+          error_log('Cloudinary destroy failed for ' . $m['drive_file_id'] . ': ' . ($res['error'] ?? 'unknown'));
         }
+      }
+      delete_media($mid);
     }
+    $selected_id = $cid;
+    $success = $success ?: 'המדיה הוסרה';
+  }
+
+  if ($action === 'delete_cat') {
+    $cid = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    if ($cid > 0) {
+      // מחיקת אובייקטים מ-Cloudinary לפני מחיקת הרשומות
+      $medias = fetch_media_for_cat($cid);
+      foreach ($medias as $m) {
+        if (!empty($m['drive_file_id'])) {
+          $rt = ($m['type'] === 'video') ? 'video' : 'image';
+          $res = cloudinary_destroy($m['drive_file_id'], $rt);
+          if (!($res['success'] ?? false)) {
+            error_log('Cloudinary destroy failed for ' . $m['drive_file_id'] . ': ' . ($res['error'] ?? 'unknown'));
+          }
+        }
+      }
+      if (delete_cat($cid)) {
+        $success = 'החתול נמחק';
+        $selected_id = 0; // חוזרים לבחירה
+      } else {
+        $errors[] = 'מחיקת החתול נכשלה';
+      }
+    }
+  }
 }
 
 // נתונים להצגה
@@ -151,26 +174,14 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
     <div>
       <div class="card mb-3 sticky-top-sm">
         <div class="card-body">
-          <form class="d-flex" method="get">
-            <input type="search" class="form-control me-2" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="חיפוש בשם/תיאור/מיקום">
-            <?php if ($selected_id): ?><input type="hidden" name="id" value="<?= (int)$selected_id ?>"><?php endif; ?>
-            <button class="btn btn-outline-secondary" type="submit">חפש</button>
+          <form class="d-flex" method="get" onsubmit="return false;">
+            <input id="js-search" type="search" class="form-control me-2" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="חיפוש בשם/תיאור/מיקום" autocomplete="off">
+            <button class="btn btn-outline-secondary" type="button" id="js-clear">נקה</button>
           </form>
         </div>
       </div>
 
-      <div class="list-group cat-list">
-        <?php if (!$cats): ?>
-          <div class="text-muted px-3 pb-3">אין חתולים</div>
-        <?php else: foreach ($cats as $c): ?>
-          <a href="?id=<?= (int)$c['id'] ?>&q=<?= urlencode($q) ?>" class="list-group-item list-group-item-action d-flex align-items-center <?= ($selected_id === (int)$c['id']) ? 'active' : '' ?> cat-card">
-            <div class="flex-fill">
-              <div class="fw-semibold">#<?= (int)$c['id'] ?> — <?= htmlspecialchars($c['name']) ?></div>
-              <div class="small text-muted"><?= htmlspecialchars($c['location_name'] ?: 'ללא מיקום') ?></div>
-            </div>
-          </a>
-        <?php endforeach; endif; ?>
-      </div>
+      <div id="js-list" class="list-group cat-list"></div>
     </div>
 
     <div>
@@ -282,6 +293,65 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
       }
     });
   }
+})();
+</script>
+<script>
+(function(){
+  // AJAX search + render
+  var listEl = document.getElementById('js-list');
+  var searchEl = document.getElementById('js-search');
+  var clearBtn = document.getElementById('js-clear');
+  var selectedId = <?= (int)$selected_id ?>;
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]);
+    });
+  }
+
+  function renderList(items){
+    if (!listEl) return;
+    if (!items || !items.length) {
+      listEl.innerHTML = '<div class="text-muted px-3 pb-3">אין חתולים</div>';
+      return;
+    }
+    var q = encodeURIComponent(searchEl ? searchEl.value : '');
+    var html = items.map(function(c){
+      var active = (selectedId === c.id) ? ' active' : '';
+      var loc = c.location_name ? c.location_name : 'ללא מיקום';
+      return '<a href="?id=' + c.id + '&q=' + q + '" class="list-group-item list-group-item-action d-flex align-items-center' + active + ' cat-card">' +
+               '<div class="flex-fill">' +
+                 '<div class="fw-semibold">#' + c.id + ' — ' + escapeHtml(c.name) + '</div>' +
+                 '<div class="small text-muted">' + escapeHtml(loc) + '</div>' +
+               '</div>' +
+             '</a>';
+    }).join('');
+    listEl.innerHTML = html;
+  }
+
+  var inflight = null;
+  function doSearch(q){
+    var url = '/admin/search_cats.php?q=' + encodeURIComponent(q || '') + '&limit=400';
+    if (inflight && typeof inflight.abort === 'function') { inflight.abort(); }
+    var ctrl = new AbortController();
+    inflight = ctrl;
+    fetch(url, { signal: ctrl.signal })
+      .then(function(r){ return r.json(); })
+      .then(function(data){ if (data && data.success) { renderList(data.items || []); } })
+      .catch(function(err){ if (err && err.name === 'AbortError') return; });
+  }
+
+  var debTimer = null;
+  function debounced(){
+    if (debTimer) { clearTimeout(debTimer); }
+    debTimer = setTimeout(function(){ doSearch(searchEl ? searchEl.value : ''); }, 200);
+  }
+
+  if (searchEl) { searchEl.addEventListener('input', debounced); }
+  if (clearBtn) { clearBtn.addEventListener('click', function(){ if (searchEl) { searchEl.value = ''; debounced(); } }); }
+
+  // initial load
+  doSearch(<?= json_encode($q, JSON_UNESCAPED_UNICODE) ?>);
 })();
 </script>
 </body>

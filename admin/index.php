@@ -89,7 +89,7 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
       <span class="ms-2">חזרה לרשימה</span>
     </a>
   <span class="navbar-text text-light">אזור ניהול</span>
-  <a class="btn btn-sm btn-outline-light ms-auto" href="/admin/edit.php">עריכת חתולים</a>
+  <a class="btn btn-sm btn-outline-light ms-auto" href="/cat/admin/edit.php">עריכת חתולים</a>
   </div>
 </nav>
 <div class="container">
