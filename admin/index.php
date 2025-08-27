@@ -51,26 +51,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = 'החתול נוסף בהצלחה';
         }
     }
-
-  // עריכת תגיות לחתול קיים
-  if (isset($_POST['edit_cat_tags'])) {
-    $cid = isset($_POST['cid']) ? (int)$_POST['cid'] : 0;
-    $tags_input2 = trim($_POST['tags'] ?? '');
-    $tags2 = $tags_input2 !== '' ? parse_tags_input($tags_input2) : [];
-    if ($cid > 0) {
-      if (replace_tags_for_cat($cid, $tags2)) {
-        $success = 'תגיות עודכנו';
-      } else {
-        $errors[] = 'עדכון התגיות נכשל';
-      }
-    }
-  }
 }
 
 $locations = fetch_locations();
-$all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
-// נטען חתולים קיימים להצגת עריכת תגיות
-$cats_for_edit = fetch_cats(null, null);
 $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
 ?><!DOCTYPE html>
 <html lang="he" dir="rtl">
@@ -150,46 +133,6 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
           </form>
         </div>
       </div>
-    </div>
-  </div>
-
-  <div class="card mb-4">
-    <div class="card-header">עריכת תגיות לחתולים קיימים</div>
-    <div class="card-body">
-      <?php if (!$cats_for_edit): ?>
-        <div class="text-muted">אין חתולים עדיין.</div>
-      <?php else: ?>
-        <div class="list-group">
-          <?php foreach ($cats_for_edit as $c):
-            $ctags = fetch_tags_for_cat((int)$c['id']);
-            $current = implode(', ', array_map(function($t){ return '#' . $t; }, $ctags));
-          ?>
-          <div class="list-group-item">
-            <div class="d-flex justify-content-between align-items-start">
-              <div class="me-3">
-                <div class="fw-semibold"><?= htmlspecialchars($c['name']) ?></div>
-                <?php if (!empty($ctags)): ?>
-                  <div class="small text-muted">תגיות: 
-                    <?php foreach ($ctags as $tg): ?>
-                      <span class="badge text-bg-secondary me-1">#<?= htmlspecialchars($tg) ?></span>
-                    <?php endforeach; ?>
-                  </div>
-                <?php else: ?>
-                  <div class="small text-muted">אין תגיות</div>
-                <?php endif; ?>
-              </div>
-              <form class="ms-auto" method="post">
-                <input type="hidden" name="cid" value="<?= (int)$c['id'] ?>">
-                <div class="input-group" style="max-width: 520px;">
-                  <input list="all-tags" type="text" class="form-control" name="tags" value="<?= htmlspecialchars($current) ?>" placeholder="#one_eye, friendly">
-                  <button class="btn btn-outline-primary" type="submit" name="edit_cat_tags" value="1">עדכון</button>
-                </div>
-              </form>
-            </div>
-          </div>
-          <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
     </div>
   </div>
 
