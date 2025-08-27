@@ -264,7 +264,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
         for (var i = 0; i < data.linked.length; i++) {
           var lc = data.linked[i];
           var subtitle = lc.location ? (' — ' + lc.location) : '';
-          html += '<button type="button" class="btn btn-sm btn-outline-primary js-linked" data-id="'+lc.id+'">#'+lc.id+' '+escapeHtml(lc.name)+'</button>';
+          html += '<button type="button" class="btn btn-sm btn-outline-primary js-linked" data-id="'+lc.id+'">'+escapeHtml(lc.name)+'</button>';
         }
         html +=   '</div>'
              + '</div>';
