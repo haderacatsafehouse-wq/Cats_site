@@ -4,6 +4,10 @@
 !/uploads/index.php
 !/uploads/.htaccess
 
+# Local configuration (secrets)
+/inc/config.json
+/inc/config.local.json
+
 # OS noise
 .DS_Store
 Thumbs.db

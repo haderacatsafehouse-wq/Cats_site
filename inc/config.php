@@ -1,20 +1,35 @@
 <?php
-// קובץ תצורה ראשי
-// PHP 7.3 Compatible
+// קובץ תצורה ראשי (ללא סודות בקוד)
+// טוען תצורה מקובץ JSON שנערך מקומית: inc/config.local.json או inc/config.json (לא עולים ל-Git)
+// נופל חזרה לברירות מחדל אם לא הוגדרו
+
+// קריאת קובץ JSON מקומי אם קיים
+$__CONF = [];
+foreach ([__DIR__ . '/config.local.json', __DIR__ . '/config.json'] as $__path) {
+    if (is_file($__path)) {
+        $json = @file_get_contents($__path);
+        $data = $json ? @json_decode($json, true) : null;
+        if (is_array($data)) { $__CONF = $data; break; }
+    }
+}
 
 // נתיב קובץ מסד הנתונים (SQLite)
-// ניתן לשנות נתיב זה לפי הצורך או באמצעות משתנה סביבה CATS_DB_FILE
-define('DB_FILE', getenv('CATS_DB_FILE') ?: (__DIR__ . '/../data/cats_sanctuary.sqlite'));
+// ניתן לשנות דרך JSON (db_file). ברירת מחדל: data/cats_sanctuary.sqlite
+$__db_file = isset($__CONF['db_file']) && $__CONF['db_file'] ? $__CONF['db_file'] : (__DIR__ . '/../data/cats_sanctuary.sqlite');
+define('DB_FILE', $__db_file);
 
-// תיקיית העלאות מקומית (לשימוש זמני/ביניים)
-// ניתן לשנות גם באמצעות משתנה סביבה CATS_UPLOADS_DIR
-define('UPLOADS_DIR', getenv('CATS_UPLOADS_DIR') ?: (__DIR__ . '/../uploads'));
+// תיקיית העלאות (לא בשימוש כש-Cloudinary בלבד, נשמר למקרי עתיד)
+$__uploads_dir = isset($__CONF['uploads_dir']) && $__CONF['uploads_dir'] ? $__CONF['uploads_dir'] : (__DIR__ . '/../uploads');
+define('UPLOADS_DIR', $__uploads_dir);
 
-// הגדרות Cloudinary — נדרש cloud_name כדי להעלות קבצים
-// חשוב: מומלץ לשמור מפתחות מחוץ לקוד, אך כאן לפי בקשתכם לשימוש מיידי.
-define('CLOUDINARY_CLOUD_NAME', 'YOUR_CLOUD_NAME'); // החליפו בשם הענן שלכם
-define('CLOUDINARY_API_KEY', '854982932249496');
-define('CLOUDINARY_API_SECRET', '1234'); // החליפו לאחר מכן
+// הגדרות Cloudinary — מומלץ להגדיר בקובץ JSON:
+// {
+//   "cloudinary": { "cloud_name": "...", "api_key": "...", "api_secret": "..." }
+// }
+$__cloud = isset($__CONF['cloudinary']) && is_array($__CONF['cloudinary']) ? $__CONF['cloudinary'] : [];
+define('CLOUDINARY_CLOUD_NAME', isset($__cloud['cloud_name']) ? $__cloud['cloud_name'] : 'YOUR_CLOUD_NAME');
+define('CLOUDINARY_API_KEY', isset($__cloud['api_key']) ? $__cloud['api_key'] : '854982932249496');
+define('CLOUDINARY_API_SECRET', isset($__cloud['api_secret']) ? $__cloud['api_secret'] : '1234');
 
 // הגדרות כלליות ל-UI
 define('SITE_TITLE', 'מקלט חתולים - אינדקס');
