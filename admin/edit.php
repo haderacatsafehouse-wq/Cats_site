@@ -184,7 +184,7 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
       <div id="js-list" class="list-group cat-list"></div>
     </div>
 
-    <div>
+    <div id="edit-section">
       <?php if (!$selected): ?>
         <div class="text-muted">בחר/י חתול מהרשימה לעריכה</div>
       <?php else: ?>
@@ -319,7 +319,7 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
     var html = items.map(function(c){
       var active = (selectedId === c.id) ? ' active' : '';
       var loc = c.location_name ? c.location_name : 'ללא מיקום';
-      return '<a href="?id=' + c.id + '&q=' + q + '" class="list-group-item list-group-item-action d-flex align-items-center' + active + ' cat-card">' +
+      return '<a href="?id=' + c.id + '&q=' + q + '#edit" class="list-group-item list-group-item-action d-flex align-items-center' + active + ' cat-card">' +
                '<div class="flex-fill">' +
                  '<div class="fw-semibold">#' + c.id + ' — ' + escapeHtml(c.name) + '</div>' +
                  '<div class="small text-muted">' + escapeHtml(loc) + '</div>' +
@@ -352,6 +352,15 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
 
   // initial load
   doSearch(<?= json_encode($q, JSON_UNESCAPED_UNICODE) ?>);
+  // If hash or a selected id exists, try to scroll into view smoothly
+  window.addEventListener('load', function(){
+    if (location.hash === '#edit' || selectedId > 0) {
+      var el = document.getElementById('edit-section');
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  });
 })();
 </script>
 </body>
