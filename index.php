@@ -14,8 +14,12 @@ require_once __DIR__ . '/inc/cloudinary.php';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <style>
         body { background: #f8f9fa; }
-        .cat-card img { object-fit: cover; height: 200px; }
-        .cat-card video { width: 100%; height: auto; }
+  /* כרטיסים בגובה אחיד ומדיה בגודל עקבי */
+  .cat-card { display: flex; flex-direction: column; }
+  .cat-media { width: 100%; aspect-ratio: 4 / 3; background: #e9ecef; overflow: hidden; }
+  .cat-media img,
+  .cat-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cat-card .card-body { display: flex; flex-direction: column; }
     </style>
 </head>
 <body>
@@ -57,8 +61,9 @@ require_once __DIR__ . '/inc/cloudinary.php';
         $media = fetch_media_for_cat((int)$cat['id']);
         $tags = function_exists('fetch_tags_for_cat') ? fetch_tags_for_cat((int)$cat['id']) : [];
     ?>
-    <div class="col-12 col-sm-6 col-lg-4 mb-4">
-      <div class="card cat-card shadow-sm">
+    <div class="col-12 col-sm-6 col-lg-4 mb-4 d-flex">
+      <div class="card cat-card shadow-sm h-100 w-100">
+        <div class="cat-media">
         <?php
           $imageShown = false;
           foreach ($media as $m) {
@@ -69,13 +74,25 @@ require_once __DIR__ . '/inc/cloudinary.php';
                 if (strpos($src, 'res.cloudinary.com') !== false) {
                   $src = cloudinary_transform_image_url($src);
                 }
-                echo '<img class="card-img-top" src="' . htmlspecialchars($src) . '" alt="תמונה של ' . htmlspecialchars($cat['name']) . '">';
+                echo '<img src="' . htmlspecialchars($src) . '" alt="תמונה של ' . htmlspecialchars($cat['name']) . '">';
                 $imageShown = true;
                 break;
               }
             }
           }
+          if (!$imageShown) {
+            foreach ($media as $m) {
+              if ($m['type'] === 'video') {
+                $vsrc = $m['local_path'] ?? '';
+                if ($vsrc) {
+                  echo '<video controls preload="metadata"><source src="' . htmlspecialchars($vsrc) . '"></video>';
+                  break;
+                }
+              }
+            }
+          }
         ?>
+        </div>
         <div class="card-body">
           <h5 class="card-title mb-1"><?= htmlspecialchars($cat['name']) ?></h5>
           <?php if (!empty($cat['location_name'])): ?>
@@ -96,11 +113,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
               <?php endforeach; ?>
             </div>
           <?php endif; ?>
-          <?php if (!$imageShown): ?>
-            <?php foreach ($media as $m): if ($m['type'] === 'video') { $vsrc = $m['local_path'] ?? ''; if ($vsrc) { ?>
-              <video controls class="mt-2"><source src="<?= htmlspecialchars($vsrc) ?>"></video>
-            <?php break; } } endforeach; ?>
-          <?php endif; ?>
+          
         </div>
       </div>
     </div>
