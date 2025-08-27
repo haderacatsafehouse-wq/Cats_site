@@ -166,6 +166,57 @@ function fetch_media_for_cat($cat_id) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// שליפת חתול בודד לפי מזהה
+function fetch_cat_by_id($cat_id) {
+    $stmt = get_db()->prepare('SELECT c.*, l.name AS location_name FROM cats c LEFT JOIN locations l ON c.location_id = l.id WHERE c.id = :id');
+    $stmt->execute([':id' => (int)$cat_id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
+// עדכון פרטי חתול
+function update_cat($cat_id, $name, $description, $location_id) {
+    $stmt = get_db()->prepare('UPDATE cats SET name = :n, description = :d, location_id = :l WHERE id = :id');
+    return $stmt->execute([
+        ':n' => trim((string)$name),
+        ':d' => ($description !== null && $description !== '') ? (string)$description : null,
+        ':l' => $location_id ? (int)$location_id : null,
+        ':id' => (int)$cat_id,
+    ]);
+}
+
+// מחיקת מדיה בודדת לפי מזהה
+function delete_media($media_id) {
+    $stmt = get_db()->prepare('DELETE FROM media WHERE id = :id');
+    return $stmt->execute([':id' => (int)$media_id]);
+}
+
+// מחיקת כל המדיה של חתול
+function delete_media_for_cat($cat_id) {
+    $stmt = get_db()->prepare('DELETE FROM media WHERE cat_id = :cid');
+    return $stmt->execute([':cid' => (int)$cat_id]);
+}
+
+// מחיקת חתול (כולל מדיה ותגיות)
+function delete_cat($cat_id) {
+    $pdo = get_db();
+    $pdo->beginTransaction();
+    try {
+        // יש למחוק מדיה ידנית (אין ON DELETE CASCADE על media)
+        $delM = $pdo->prepare('DELETE FROM media WHERE cat_id = :cid');
+        $delM->execute([':cid' => (int)$cat_id]);
+        // cat_tags יימחקו אוטומטית בזכות ON DELETE CASCADE
+        $delC = $pdo->prepare('DELETE FROM cats WHERE id = :cid');
+        $delC->execute([':cid' => (int)$cat_id]);
+        $pdo->commit();
+        return true;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) { $pdo->rollBack(); }
+        error_log('delete_cat failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
 // --- עזר: קריאה/עדכון קובץ המיקומים ---
 function read_locations_from_file() {
     $path = defined('LOCATIONS_FILE') ? LOCATIONS_FILE : null;
