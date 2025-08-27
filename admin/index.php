@@ -104,7 +104,7 @@ $locations = fetch_locations();
       <div class="card">
         <div class="card-header">הוספת חתול</div>
         <div class="card-body">
-          <form method="post" enctype="multipart/form-data">
+          <form id="cat-form" method="post" enctype="multipart/form-data">
             <div class="mb-3">
               <label class="form-label">שם החתול</label>
               <input type="text" class="form-control" name="cat_name" required>
@@ -124,7 +124,7 @@ $locations = fetch_locations();
             </div>
             <div class="mb-3">
               <label class="form-label">מדיה (תמונות/וידאו, ניתן לבחור מספר קבצים)</label>
-              <input type="file" class="form-control" name="media_files[]" multiple accept="image/*,video/*">
+              <input id="media_files" type="file" class="form-control" name="media_files[]" multiple accept="image/*,video/*">
               <div class="form-text">הקבצים יועלו ל-Cloudinary בלבד (ללא שמירה מקומית).</div>
             </div>
             <button class="btn btn-success" type="submit" name="add_cat" value="1">הוסף חתול</button>
@@ -153,5 +153,32 @@ $locations = fetch_locations();
 
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function(){
+  var form = document.getElementById('cat-form');
+  if (!form) return;
+  // מניעת שליחה אוטומטית באמצעות מקש Enter (למעט בתוך textarea)
+  form.addEventListener('keydown', function(e){
+    var tag = e.target && e.target.tagName ? e.target.tagName.toUpperCase() : '';
+    if (e.key === 'Enter' && tag !== 'TEXTAREA') {
+      e.preventDefault();
+    }
+  });
+  // בקשת אישור כאשר יש וידאו בין הקבצים
+  form.addEventListener('submit', function(e){
+    var input = document.getElementById('media_files');
+    if (input && input.files && input.files.length) {
+      for (var i = 0; i < input.files.length; i++) {
+        var f = input.files[i];
+        if (f && f.type && f.type.indexOf('video') === 0) {
+          var ok = window.confirm('נבחרו קבצי וידאו. האם להמשיך בהעלאה?');
+          if (!ok) { e.preventDefault(); }
+          break;
+        }
+      }
+    }
+  });
+})();
+</script>
 </body>
 </html>
