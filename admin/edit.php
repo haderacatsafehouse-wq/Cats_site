@@ -145,6 +145,8 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
     .cat-card { cursor: pointer; }
     .media-thumb { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; }
     .sticky-top-sm { position: sticky; top: 0; z-index: 1020; }
+  .thumb { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; margin-inline-start: .5rem; }
+  .thumb-placeholder { width: 36px; height: 36px; border-radius: 50%; background: #e9ecef; display: inline-block; margin-inline-start: .5rem; border: 1px solid #dee2e6; }
     @media (min-width: 992px) {
       .split { display: grid; grid-template-columns: 380px 1fr; gap: 1rem; }
       .cat-list { max-height: calc(100vh - 160px); overflow: auto; }
@@ -319,7 +321,9 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
     var html = items.map(function(c){
       var active = (selectedId === c.id) ? ' active' : '';
       var loc = c.location_name ? c.location_name : 'ללא מיקום';
+      var img = c.thumb_url ? '<img class="thumb" src="' + encodeURI(c.thumb_url) + '" alt="" loading="lazy">' : '<span class="thumb-placeholder" title="ללא תמונה"></span>';
       return '<a href="?id=' + c.id + '&q=' + q + '#edit" class="list-group-item list-group-item-action d-flex align-items-center' + active + ' cat-card">' +
+               img +
                '<div class="flex-fill">' +
                  '<div class="fw-semibold">#' + c.id + ' — ' + escapeHtml(c.name) + '</div>' +
                  '<div class="small text-muted">' + escapeHtml(loc) + '</div>' +

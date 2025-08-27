@@ -174,6 +174,33 @@ function fetch_media_by_id($media_id) {
     return $row ?: null;
 }
 
+// שליפת תמונת תצוגה אחרונה לכל חתול מרשימת מזהים
+// מחזיר מערך במבנה [cat_id => local_path]
+function fetch_latest_image_map_for_cats(array $catIds) {
+    $catIds = array_values(array_unique(array_map('intval', $catIds)));
+    if (!$catIds) { return []; }
+    $placeholders = implode(',', array_fill(0, count($catIds), '?'));
+    $sql = 'SELECT m.cat_id, m.local_path
+            FROM media m
+            INNER JOIN (
+                SELECT cat_id, MAX(id) AS max_id
+                FROM media
+                WHERE type = "image" AND cat_id IN (' . $placeholders . ')
+                GROUP BY cat_id
+            ) t ON t.max_id = m.id';
+    $stmt = get_db()->prepare($sql);
+    foreach ($catIds as $i => $cid) {
+        $stmt->bindValue($i + 1, $cid, PDO::PARAM_INT);
+    }
+    $stmt->execute();
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $out = [];
+    foreach ($rows as $r) {
+        $out[(int)$r['cat_id']] = (string)$r['local_path'];
+    }
+    return $out;
+}
+
 // שליפת חתול בודד לפי מזהה
 function fetch_cat_by_id($cat_id) {
     $stmt = get_db()->prepare('SELECT c.*, l.name AS location_name FROM cats c LEFT JOIN locations l ON c.location_id = l.id WHERE c.id = :id');
