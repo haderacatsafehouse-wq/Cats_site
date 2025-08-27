@@ -28,20 +28,20 @@ require_once __DIR__ . '/inc/cloudinary.php';
 </nav>
 <div class="container">
   <?php $locs = fetch_locations(); ?>
-  <div class="row mb-2">
-    <div class="col-12 col-md-6">
-      <h1 class="h4"></h1>
-    </div>
-    <div class="col-12 col-md-6">
-      <form class="d-flex" method="get" role="search" aria-label="חיפוש וסינון">
+  <div class="row mb-3">
+    <div class="col-12">
+      <form class="mx-auto" style="max-width: 640px;" method="get" role="search" aria-label="חיפוש וסינון">
         <?php $qSel = isset($_GET['q']) ? trim((string)$_GET['q']) : ''; ?>
-        <input type="text" name="q" value="<?= htmlspecialchars($qSel) ?>" class="form-control me-2" placeholder="חיפוש חופשי (שם, תיאור, מיקום, תגיות)">
-        <button class="btn btn-primary" type="submit">חפש</button>
+        <div class="input-group w-100">
+          <input type="text" name="q" value="<?= htmlspecialchars($qSel) ?>" class="form-control" placeholder="חיפוש חופשי (שם, תיאור, מיקום, תגיות)">
+          <button class="btn btn-primary" type="submit">חפש</button>
+        </div>
       </form>
     </div>
   </div>
   <div class="row mb-3">
     <div class="col-12" aria-label="סינון לפי מיקום">
+      <h2 class="h6 text-muted mb-2">מיקומים — לחצו כדי לסנן</h2>
       <div id="locationFilters" class="d-flex flex-wrap gap-2">
         <?php foreach ($locs as $loc): ?>
           <button type="button" class="btn btn-sm btn-outline-primary me-2 mb-2 location-pill" data-loc-name="<?= htmlspecialchars($loc['name']) ?>">
