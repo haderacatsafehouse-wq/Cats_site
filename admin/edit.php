@@ -331,7 +331,7 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
 
   var inflight = null;
   function doSearch(q){
-    var url = '/admin/search_cats.php?q=' + encodeURIComponent(q || '') + '&limit=400';
+    var url = 'search_cats.php?q=' + encodeURIComponent(q || '') + '&limit=400';
     if (inflight && typeof inflight.abort === 'function') { inflight.abort(); }
     var ctrl = new AbortController();
     inflight = ctrl;
