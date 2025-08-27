@@ -8,19 +8,6 @@ $errors = [];
 $success = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['add_location'])) {
-        $name = trim($_POST['location_name'] ?? '');
-        if ($name === '') {
-            $errors[] = 'יש להזין שם מיקום';
-        } else {
-            if (add_location($name)) {
-                $success = 'המיקום נוסף בהצלחה';
-            } else {
-                $errors[] = 'לא ניתן להוסיף את המיקום (ייתכן שכבר קיים)';
-            }
-        }
-    }
-
   if (isset($_POST['add_cat'])) {
         $name = trim($_POST['cat_name'] ?? '');
         $description = trim($_POST['cat_desc'] ?? '');
@@ -109,22 +96,7 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
   <?php endif; ?>
 
   <div class="row">
-    <div class="col-12 col-lg-5 mb-4">
-      <div class="card">
-        <div class="card-header">הוספת מיקום חדש</div>
-        <div class="card-body">
-          <form method="post">
-            <div class="mb-3">
-              <label class="form-label">שם המיקום</label>
-              <input type="text" class="form-control" name="location_name" required>
-            </div>
-            <button class="btn btn-primary" type="submit" name="add_location" value="1">הוסף מיקום</button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-7 mb-4">
+    <div class="col-12 mb-4">
       <div class="card">
         <div class="card-header">הוספת חתול</div>
         <div class="card-body">
@@ -173,23 +145,6 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
           </form>
         </div>
       </div>
-    </div>
-  </div>
-
-  <div class="card mb-4">
-    <div class="card-header">מיקומים קיימים</div>
-    <div class="card-body">
-      <?php if (!$locations): ?>
-        <div class="text-muted">אין מיקומים עדיין.</div>
-      <?php else: ?>
-        <ul class="list-group">
-          <?php foreach ($locations as $loc): ?>
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <span><?= htmlspecialchars($loc['name']) ?></span>
-            </li>
-          <?php endforeach; ?>
-        </ul>
-      <?php endif; ?>
     </div>
   </div>
 
