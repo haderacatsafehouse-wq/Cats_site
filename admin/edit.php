@@ -304,6 +304,7 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
   var searchEl = document.getElementById('js-search');
   var clearBtn = document.getElementById('js-clear');
   var selectedId = <?= (int)$selected_id ?>;
+  var didAutoScroll = false;
 
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, function(c){
@@ -331,6 +332,20 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
              '</a>';
     }).join('');
     listEl.innerHTML = html;
+
+    // After rendering, scroll to the edit pane if a cat is selected (one time per load)
+    if (!didAutoScroll && selectedId > 0) {
+      var el = document.getElementById('edit-section');
+      if (el && typeof el.scrollIntoView === 'function') {
+        // Use smooth scroll and align to start
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // Fallback: scroll to bottom
+        var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+        window.scrollTo({ top: h, behavior: 'smooth' });
+      }
+      didAutoScroll = true;
+    }
   }
 
   var inflight = null;
@@ -356,13 +371,7 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
 
   // initial load
   doSearch(<?= json_encode($q, JSON_UNESCAPED_UNICODE) ?>);
-  // On small views, auto-scroll to the bottom where the edit pane is
-  window.addEventListener('load', function(){
-    if (selectedId > 0) {
-      var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-      window.scrollTo({ top: h, behavior: 'smooth' });
-    }
-  });
+  // Note: Scrolling is handled after the list renders (renderList)
 })();
 </script>
 </body>
