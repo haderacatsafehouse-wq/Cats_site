@@ -123,3 +123,41 @@ a:hover { color: var(--color-primary-deep); }
 
 /* Utilities */
 .text-muted { color: var(--color-muted) !important; }
+
+/* --- Ensure carousel arrows are always visible --- */
+/* Remove default semi-transparency so controls are reliably visible */
+.modal .carousel .carousel-control-prev,
+.modal .carousel .carousel-control-next {
+  opacity: 1;
+}
+
+/* Enlarge hit area slightly and keep arrows centered */
+.modal .carousel .carousel-control-prev,
+.modal .carousel .carousel-control-next { width: 3.25rem; }
+
+/* Icon button: fallback gets a subtle dark circular halo so white glyph stands out on light video frames */
+.modal .carousel .carousel-control-prev-icon,
+.modal .carousel .carousel-control-next-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 60% 60%;
+  /* Fallback halo behind the arrow ensures contrast on bright backdrops */
+  background-color: rgba(0, 0, 0, 0.35);
+  /* Soft outline around the white arrow for mixed/flat backgrounds */
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.35))
+          drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+}
+
+/* Prefer adaptive backdrop inversion if supported: inverts the area under the icon
+   so the white arrow always sits over a contrasting circle, without being too heavy */
+@supports ((backdrop-filter: invert(1)) or (-webkit-backdrop-filter: invert(1))) {
+  .modal .carousel .carousel-control-prev-icon,
+  .modal .carousel .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.06); /* minimal fill to enable backdrop filter */
+    -webkit-backdrop-filter: invert(1) contrast(1.15) saturate(1.05);
+    backdrop-filter: invert(1) contrast(1.15) saturate(1.05);
+  }
+}
