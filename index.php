@@ -52,6 +52,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
       }
       foreach ($cats as $cat):
         $media = fetch_media_for_cat((int)$cat['id']);
+        $tags = function_exists('fetch_tags_for_cat') ? fetch_tags_for_cat((int)$cat['id']) : [];
     ?>
     <div class="col-12 col-sm-6 col-lg-4 mb-4">
       <div class="card cat-card shadow-sm">
@@ -79,6 +80,13 @@ require_once __DIR__ . '/inc/cloudinary.php';
           <?php endif; ?>
           <?php if (!empty($cat['description'])): ?>
             <p class="card-text mt-2"><?= nl2br(htmlspecialchars($cat['description'])) ?></p>
+          <?php endif; ?>
+          <?php if (!empty($tags)): ?>
+            <div class="mt-2" aria-label="תגיות">
+              <?php foreach ($tags as $tg): ?>
+                <span class="badge rounded-pill text-bg-secondary me-1">#<?= htmlspecialchars($tg) ?></span>
+              <?php endforeach; ?>
+            </div>
           <?php endif; ?>
           <?php if (!$imageShown): ?>
             <?php foreach ($media as $m): if ($m['type'] === 'video') { $vsrc = $m['local_path'] ?? ''; if ($vsrc) { ?>

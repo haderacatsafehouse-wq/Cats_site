@@ -32,8 +32,10 @@ function get_db() {
         }
 
         $db_path = $candidate;
-        $pdo = new PDO('sqlite:' . $db_path);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo = new PDO('sqlite:' . $db_path);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // הפעלת תמיכת מפתחות זרים ב-SQLite
+    $pdo->exec('PRAGMA foreign_keys = ON');
         init_schema($pdo);
     }
     return $pdo;
@@ -62,6 +64,20 @@ function init_schema($pdo) {
         local_path TEXT,    -- URL לתצוגה (Cloudinary secure_url) או נתיב/URL מקומי
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(cat_id) REFERENCES cats(id)
+    )');
+
+    // תגיות (האשטגים) לחתולים: many-to-many
+    $pdo->exec('CREATE TABLE IF NOT EXISTS tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE
+    )');
+
+    $pdo->exec('CREATE TABLE IF NOT EXISTS cat_tags (
+        cat_id INTEGER NOT NULL,
+        tag_id INTEGER NOT NULL,
+        PRIMARY KEY (cat_id, tag_id),
+        FOREIGN KEY(cat_id) REFERENCES cats(id) ON DELETE CASCADE,
+        FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
     )');
 
     // סנכרון מיקומים מקובץ JSON חיצוני לבסיס הנתונים (לצורך שמירת מזהים ויחסים)
@@ -176,4 +192,96 @@ function safe_append_location_to_file($name) {
         $list[] = $name;
         @file_put_contents($path, json_encode($list, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
     }
+}
+
+// ---------------------------------
+// תגיות (האשטגים) לחתולים
+// ---------------------------------
+
+/**
+ * מנרמל תגית: מסיר #, חותך רווחים, תווך לאותיות קטנות, ומאפשר רק a-z0-9_-
+ */
+function normalize_tag($tag) {
+    $t = (string)$tag;
+    $t = trim($t);
+    if ($t === '') { return ''; }
+    if ($t[0] === '#') { $t = substr($t, 1); }
+    // החלפת רווחים/רצפי רווחים בקו תחתון
+    $t = preg_replace('/\s+/', '_', $t);
+    // השארת תווים מותרים בלבד
+    $t = preg_replace('/[^a-zA-Z0-9_-]/', '', $t);
+    $t = strtolower($t);
+    // אורך סביר
+    if ($t === '' || strlen($t) > 50) { return ''; }
+    return $t;
+}
+
+/**
+ * מפרק מחרוזת קלט של תגיות למערך תגיות מנורמלות ויחודיות.
+ * תומך בהפרדה ברווחים, פסיקים, נקודה-פסיק ושורות.
+ */
+function parse_tags_input($str) {
+    $str = (string)$str;
+    if (trim($str) === '') { return []; }
+    // המרה למפריד אחיד
+    $s = str_replace(["\n", "\r", ';'], ' ', $str);
+    $s = preg_replace('/[\s,]+/', ' ', $s);
+    $parts = preg_split('/\s+/', $s, -1, PREG_SPLIT_NO_EMPTY);
+    $set = [];
+    foreach ($parts as $p) {
+        $n = normalize_tag($p);
+        if ($n !== '') { $set[$n] = true; }
+    }
+    return array_keys($set);
+}
+
+function get_or_create_tag_id($name) {
+    $name = normalize_tag($name);
+    if ($name === '') { return null; }
+    $pdo = get_db();
+    $sel = $pdo->prepare('SELECT id FROM tags WHERE name = :n');
+    $sel->execute([':n' => $name]);
+    $row = $sel->fetch(PDO::FETCH_ASSOC);
+    if ($row && isset($row['id'])) { return (int)$row['id']; }
+    $ins = $pdo->prepare('INSERT INTO tags(name) VALUES (:n)');
+    try {
+        $ins->execute([':n' => $name]);
+        return (int)$pdo->lastInsertId();
+    } catch (PDOException $e) {
+        // ייתכן שנוצר במקביל; ננסה שוב לבחור
+        $sel->execute([':n' => $name]);
+        $row = $sel->fetch(PDO::FETCH_ASSOC);
+        return $row ? (int)$row['id'] : null;
+    }
+}
+
+function add_tags_for_cat($cat_id, array $tags) {
+    if (!$tags) { return; }
+    $pdo = get_db();
+    $pdo->beginTransaction();
+    try {
+        $link = $pdo->prepare('INSERT OR IGNORE INTO cat_tags(cat_id, tag_id) VALUES (:c, :t)');
+        foreach ($tags as $tname) {
+            $tid = get_or_create_tag_id($tname);
+            if ($tid) {
+                $link->execute([':c' => (int)$cat_id, ':t' => $tid]);
+            }
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) { $pdo->rollBack(); }
+        error_log('add_tags_for_cat failed: ' . $e->getMessage());
+    }
+}
+
+function fetch_tags_for_cat($cat_id) {
+    $stmt = get_db()->prepare('SELECT t.name FROM tags t
+                               INNER JOIN cat_tags ct ON ct.tag_id = t.id
+                               WHERE ct.cat_id = :c
+                               ORDER BY t.name');
+    $stmt->execute([':c' => $cat_id]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $out = [];
+    foreach ($rows as $r) { $out[] = (string)$r['name']; }
+    return $out;
 }

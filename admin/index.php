@@ -25,10 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim($_POST['cat_name'] ?? '');
         $description = trim($_POST['cat_desc'] ?? '');
         $location_id = isset($_POST['cat_location']) && $_POST['cat_location'] !== '' ? (int)$_POST['cat_location'] : null;
+        $tags_input = trim($_POST['cat_tags'] ?? '');
         if ($name === '') {
             $errors[] = 'יש להזין שם חתול';
         } else {
   $catId = add_cat($name, $description ?: null, $location_id);
+  // תגיות
+  if ($tags_input !== '') {
+    $tags = parse_tags_input($tags_input);
+    if ($tags) { add_tags_for_cat($catId, $tags); }
+  }
   // טיפול במדיה (Cloudinary בלבד)
     if (!empty($_FILES['media_files']['name'][0])) {
                 $count = count($_FILES['media_files']['name']);
@@ -112,6 +118,11 @@ $locations = fetch_locations();
             <div class="mb-3">
               <label class="form-label">תיאור (לא חובה)</label>
               <textarea class="form-control" name="cat_desc" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">תגיות (האשטגים)</label>
+              <input type="text" class="form-control" name="cat_tags" placeholder="#one_eye, #friendly, #kitten">
+              <div class="form-text">הפרד/י ברווחים, פסיקים או נקודה-פסיק. ניתן להקדים # או להשמיט.</div>
             </div>
             <div class="mb-3">
               <label class="form-label">מיקום</label>
