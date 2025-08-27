@@ -34,12 +34,8 @@ require_once __DIR__ . '/inc/cloudinary.php';
     </div>
     <div class="col-12 col-md-6">
       <form class="d-flex" method="get" role="search" aria-label="חיפוש וסינון">
-        <?php 
-          $tagSel = isset($_GET['tag']) ? trim((string)$_GET['tag']) : ''; 
-          $qSel = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
-        ?>
+        <?php $qSel = isset($_GET['q']) ? trim((string)$_GET['q']) : ''; ?>
         <input type="text" name="q" value="<?= htmlspecialchars($qSel) ?>" class="form-control me-2" placeholder="חיפוש חופשי (שם, תיאור, מיקום, תגיות)">
-        <input type="text" name="tag" value="<?= htmlspecialchars($tagSel) ?>" class="form-control me-2" placeholder="#תגית (אופציונלי)">
         <button class="btn btn-primary" type="submit">חפש</button>
       </form>
     </div>
@@ -58,13 +54,12 @@ require_once __DIR__ . '/inc/cloudinary.php';
 
   <div class="row" id="cats">
     <?php
-  // סינון מיקום יתבצע בצד הלקוח. בצד השרת נטען לפי חיפוש חופשי (q) אם קיים, אחרת לפי תג, אחרת את כולם.
-  $tagFilter = isset($_GET['tag']) && $_GET['tag'] !== '' ? (string)$_GET['tag'] : null;
+  // סינון מיקום יתבצע בצד הלקוח. בצד השרת נטען לפי חיפוש חופשי (q) אם קיים, אחרת את כולם.
   $qFilter = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
   if ($qFilter !== '') {
     $cats = search_cats_fuzzy($qFilter, 200);
   } else {
-    $cats = fetch_cats(null, $tagFilter);
+    $cats = fetch_cats();
   }
       if (!$cats) {
           echo '<div class="col-12"><div class="alert alert-info">אין חתולים להצגה עדיין.</div></div>';
@@ -133,8 +128,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
       <?php if (!empty($tags)): ?>
             <div class="mt-2" aria-label="תגיות">
               <?php foreach ($tags as $tg): ?>
-        <?php $href = '?tag=' . urlencode($tg); ?>
-        <a href="<?= htmlspecialchars($href) ?>" class="badge rounded-pill text-bg-secondary text-decoration-none me-1">#<?= htmlspecialchars($tg) ?></a>
+                <span class="badge rounded-pill text-bg-secondary me-1">#<?= htmlspecialchars($tg) ?></span>
               <?php endforeach; ?>
             </div>
           <?php endif; ?>
@@ -264,8 +258,7 @@ require_once __DIR__ . '/inc/cloudinary.php';
         html += '<div class="mt-2">';
         for (var t = 0; t < data.tags.length; t++) {
           var tag = data.tags[t];
-      var href = '?tag=' + encodeURIComponent(tag);
-          html += '<a href="'+href+'" class="badge rounded-pill text-bg-secondary text-decoration-none me-1">#'+escapeHtml(tag)+'</a>';
+          html += '<span class="badge rounded-pill text-bg-secondary me-1">#'+escapeHtml(tag)+'</span>';
         }
         html += '</div>';
       }
