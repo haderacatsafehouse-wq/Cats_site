@@ -88,16 +88,22 @@ require_once __DIR__ . '/inc/cloudinary.php';
       <div class="card cat-card shadow-sm h-100 w-100" data-location-name="<?= htmlspecialchars(!empty($cat['location_name']) ? (string)$cat['location_name'] : '') ?>">
         <div class="cat-media">
         <?php
+          // נעדיף תמונה שמסומנת כתמונת מפתח; אחרת הראשונה
           $imageShown = false;
-          foreach ($media as $m) {
+          $ordered = $media;
+          usort($ordered, function($a,$b){
+            $am = !empty($a['is_main']) ? 1 : 0; $bm = !empty($b['is_main']) ? 1 : 0;
+            if ($am !== $bm) return $bm - $am; // main קודם
+            $ad = isset($a['created_at']) ? strtotime($a['created_at']) : 0;
+            $bd = isset($b['created_at']) ? strtotime($b['created_at']) : 0;
+            return $bd - $ad;
+          });
+          foreach ($ordered as $m) {
             $t = isset($m['type']) ? strtolower(trim((string)$m['type'])) : '';
             if (strpos($t, 'image') === 0) {
               $src = $m['local_path'] ?? '';
               if ($src) {
-                // אם זה URL של Cloudinary נבקש גרסה קלה יותר
-                if (strpos($src, 'res.cloudinary.com') !== false) {
-                  $src = cloudinary_transform_image_url($src);
-                }
+                if (strpos($src, 'res.cloudinary.com') !== false) { $src = cloudinary_transform_image_url($src); }
                 echo '<img src="' . htmlspecialchars($src) . '" alt="תמונה של ' . htmlspecialchars($cat['name']) . '">';
                 $imageShown = true;
                 break;
@@ -105,14 +111,11 @@ require_once __DIR__ . '/inc/cloudinary.php';
             }
           }
           if (!$imageShown) {
-            foreach ($media as $m) {
+            foreach ($ordered as $m) {
               $t = isset($m['type']) ? strtolower(trim((string)$m['type'])) : '';
               if (strpos($t, 'video') === 0) {
                 $vsrc = $m['local_path'] ?? '';
-                if ($vsrc) {
-                  echo '<video controls preload="metadata"><source src="' . htmlspecialchars($vsrc) . '"></video>';
-                  break;
-                }
+                if ($vsrc) { echo '<video controls preload="metadata"><source src="' . htmlspecialchars($vsrc) . '"></video>'; break; }
               }
             }
           }

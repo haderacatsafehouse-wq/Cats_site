@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $description = trim($_POST['cat_desc'] ?? '');
         $location_id = isset($_POST['cat_location']) && $_POST['cat_location'] !== '' ? (int)$_POST['cat_location'] : null;
         $tags_input = trim($_POST['cat_tags'] ?? '');
+  $mainIndex = isset($_POST['main_media_index']) ? (int)$_POST['main_media_index'] : -1; // אינדקס הקובץ שסומן כתמונת מפתח
         if ($name === '') {
             $errors[] = 'יש להזין שם חתול';
         } else {
@@ -34,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   // טיפול במדיה (Cloudinary בלבד)
     if (!empty($_FILES['media_files']['name'][0])) {
                 $count = count($_FILES['media_files']['name']);
+                $firstImageMid = null; $markedMain = false;
                 for ($i = 0; $i < $count; $i++) {
                     $tmp = $_FILES['media_files']['tmp_name'][$i];
                     $orig = $_FILES['media_files']['name'][$i];
@@ -50,11 +52,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           if ($uploaded['success'] ?? false) {
             $publicId = $uploaded['public_id'] ?? null;
             $secureUrl = $uploaded['secure_url'] ?? null;
-            add_media($catId, $resType, $publicId, $secureUrl);
+            $mid = add_media($catId, $resType, $publicId, $secureUrl);
+            if ($isImage && $mid) {
+              if ($firstImageMid === null) { $firstImageMid = (int)$mid; }
+              if (!$markedMain && $i === $mainIndex) {
+                if (set_main_media($catId, (int)$mid)) { $markedMain = true; }
+              }
+            }
           } else {
             $errMsg = isset($uploaded['error']) ? $uploaded['error'] : 'שגיאה לא ידועה בהעלאה ל-Cloudinary';
             $errors[] = 'נכשלה העלאה ל-Cloudinary עבור הקובץ: ' . htmlspecialchars($orig) . ' — ' . htmlspecialchars($errMsg);
           }
+                }
+                // אם לא נבחרה ידנית תמונת מפתח ויש תמונת סטילס — בחר את הראשונה
+                if (!$markedMain && $firstImageMid) {
+                    set_main_media($catId, (int)$firstImageMid);
                 }
             }
             $success = 'החתול נוסף בהצלחה';
@@ -145,6 +157,8 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
               <label class="form-label">מדיה (תמונות/וידאו, ניתן לבחור מספר קבצים)</label>
               <input id="media_files" type="file" class="form-control" name="media_files[]" multiple accept="image/*,video/*">
               <div class="form-text">הקבצים יועלו ל-Cloudinary בלבד (ללא שמירה מקומית).</div>
+              <input type="hidden" id="main_media_index" name="main_media_index" value="-1">
+              <div id="media_preview" class="row g-2 mt-2"></div>
             </div>
             <button class="btn btn-success" type="submit" name="add_cat" value="1">הוסף חתול</button>
           </form>
@@ -181,6 +195,52 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
       }
     }
   });
+
+  // תצוגת תצוגה מקדימה ובחירת תמונת מפתח
+  (function(){
+    var input = document.getElementById('media_files');
+    var preview = document.getElementById('media_preview');
+    var hiddenMain = document.getElementById('main_media_index');
+    var objectUrls = [];
+    function clean(){ objectUrls.forEach(function(u){ try{ URL.revokeObjectURL(u); }catch(e){} }); objectUrls = []; }
+    function render(){
+      if (!preview || !input) return;
+      clean();
+      preview.innerHTML = '';
+      var files = input.files; if (!files || !files.length) { if (hiddenMain) hiddenMain.value = -1; return; }
+      var firstImageIndex = -1;
+      for (var i=0;i<files.length;i++){
+        (function(i){
+          var f = files[i]; var isImg = f && f.type && f.type.indexOf('image')===0;
+          if (firstImageIndex === -1 && isImg) firstImageIndex = i;
+          var col = document.createElement('div'); col.className = 'col-4 col-md-3';
+          var card = document.createElement('div'); card.className = 'position-relative border rounded overflow-hidden'; card.style.cursor='pointer';
+          var badge = document.createElement('span'); badge.className = 'badge bg-primary position-absolute'; badge.style.top='.25rem'; badge.style.insetInlineEnd='.25rem'; badge.textContent='תמונת מפתח'; badge.style.display='none';
+          var inner;
+          if (isImg) {
+            var url = URL.createObjectURL(f); objectUrls.push(url);
+            inner = document.createElement('img'); inner.src = url; inner.alt=''; inner.style.width='100%'; inner.style.height='90px'; inner.style.objectFit='cover';
+          } else {
+            inner = document.createElement('div'); inner.className='d-flex align-items-center justify-content-center bg-light'; inner.style.height='90px'; inner.innerHTML='<span class="small text-muted">וידאו</span>';
+          }
+          card.appendChild(inner); card.appendChild(badge); col.appendChild(card); preview.appendChild(col);
+          function select(){ if (!isImg) return; if (hiddenMain) hiddenMain.value = String(i); updateBadges(); }
+          card.addEventListener('click', select);
+          card.addEventListener('keydown', function(ev){ if (ev.key==='Enter' || ev.key===' ') { ev.preventDefault(); select(); } });
+          card.setAttribute('tabindex', isImg ? '0' : '-1');
+        })(i);
+      }
+      function updateBadges(){
+        var chosen = hiddenMain ? parseInt(hiddenMain.value||'-1',10) : -1;
+        var cards = preview.querySelectorAll('.position-relative');
+        cards.forEach(function(c, idx){ var b=c.querySelector('.badge'); if (!b) return; b.style.display = (idx===chosen) ? 'inline-block' : 'none'; c.style.outline = (idx===chosen)?'2px solid #0d6efd':'none'; });
+      }
+      // בחר אוטומטית את תמונת הסטילס הראשונה אם לא נבחרה
+      if (hiddenMain && (parseInt(hiddenMain.value||'-1',10)<0) && firstImageIndex>=0) { hiddenMain.value = String(firstImageIndex); }
+      updateBadges();
+    }
+    if (input) { input.addEventListener('change', render); }
+  })();
 
   // הוספת תגית קיימת בלחיצה
   var tagButtons = document.querySelectorAll('.js-add-tag');

@@ -77,6 +77,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+  if ($action === 'set_main_media') {
+    $cid = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    $mid = isset($_POST['media_id']) ? (int)$_POST['media_id'] : 0;
+    if ($cid > 0 && $mid > 0) {
+      if (set_main_media($cid, $mid)) {
+        $success = 'תמונת המפתח עודכנה';
+      } else {
+        $errors[] = 'עדכון תמונת המפתח נכשל';
+      }
+    }
+    $selected_id = $cid ?: $selected_id;
+  }
+
   if ($action === 'delete_media') {
     $mid = isset($_POST['media_id']) ? (int)$_POST['media_id'] : 0;
     $cid = isset($_POST['id']) ? (int)$_POST['id'] : 0;
@@ -162,6 +175,9 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
       .cat-list { max-height: calc(100vh - 160px); overflow: auto; }
       .sticky-top-sm { top: 1rem; }
     }
+  .main-badge { position: absolute; top: .25rem; inset-inline-end: .25rem; }
+  .media-card { position: relative; }
+  .media-card.main { outline: 2px solid #0d6efd; border-radius: .5rem; }
   </style>
 </head>
 <body>
@@ -220,7 +236,52 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
               </div>
               <div class="mb-3">
                 <label class="form-label">תיאור</label>
-                <textarea class="form-control" name="description" rows="3"><?= htmlspecialchars($selected['description'] ?? '') ?></textarea>
+                  <div class="row g-3">
+                    <?php foreach ($selected_media as $m): ?>
+                      <?php
+                        $isImage = isset($m['type']) && strpos(strtolower((string)$m['type']), 'image') === 0;
+                        $isVideo = isset($m['type']) && strpos(strtolower((string)$m['type']), 'video') === 0;
+                        $src = isset($m['local_path']) ? (string)$m['local_path'] : '';
+                        if ($src && $isImage && strpos($src, 'res.cloudinary.com') !== false) {
+                          $src = cloudinary_transform_image_url($src, 'c_fill,w_320,h_240,q_auto,f_auto');
+                        }
+                        $isMain = !empty($m['is_main']);
+                      ?>
+                      <div class="col-6 col-md-4 col-lg-3">
+                        <div class="card media-card <?= $isMain ? 'main' : '' ?>">
+                          <div class="card-img-top ratio ratio-4x3 d-flex align-items-center justify-content-center bg-light">
+                            <?php if ($isImage && $src): ?>
+                              <img src="<?= htmlspecialchars($src) ?>" alt="" class="w-100 h-100" style="object-fit:cover; border-top-left-radius:.5rem;border-top-right-radius:.5rem;">
+                            <?php elseif ($isVideo && $src): ?>
+                              <span class="text-muted small">וידאו</span>
+                            <?php else: ?>
+                              <span class="text-muted small">ללא תצוגה</span>
+                            <?php endif; ?>
+                          </div>
+                          <?php if ($isMain): ?>
+                            <span class="badge text-bg-primary main-badge">תמונת מפתח</span>
+                          <?php endif; ?>
+                          <div class="card-body p-2 d-flex gap-2">
+                            <?php if ($isImage): ?>
+                              <form method="post" class="ms-auto">
+                                <input type="hidden" name="action" value="set_main_media">
+                                <input type="hidden" name="id" value="<?= (int)$selected['id'] ?>">
+                                <input type="hidden" name="media_id" value="<?= (int)$m['id'] ?>">
+                                <button type="submit" class="btn btn-sm <?= $isMain ? 'btn-primary' : 'btn-outline-primary' ?>" <?= $isMain ? 'disabled' : '' ?>>בחר כתמונת מפתח</button>
+                              </form>
+                            <?php endif; ?>
+                            <form method="post" onsubmit="return confirm('למחוק פריט מדיה זה?');">
+                              <input type="hidden" name="action" value="delete_media">
+                              <input type="hidden" name="id" value="<?= (int)$selected['id'] ?>">
+                              <input type="hidden" name="media_id" value="<?= (int)$m['id'] ?>">
+                              <button type="submit" class="btn btn-sm btn-outline-danger">מחק</button>
+                            </form>
+                          </div>
+                        </div>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+                  <?php endif; ?>
               </div>
               <div class="mb-3">
                 <label class="form-label">מיקום</label>

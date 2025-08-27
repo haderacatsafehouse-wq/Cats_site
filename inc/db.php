@@ -62,9 +62,25 @@ function init_schema($pdo) {
         type TEXT NOT NULL, -- image | video
         drive_file_id TEXT, -- בשימוש כעת ל-public_id של Cloudinary (שם עמודה נשמרת לצורך תאימות)
         local_path TEXT,    -- URL לתצוגה (Cloudinary secure_url) או נתיב/URL מקומי
+        is_main INTEGER DEFAULT 0, -- 1 אם זו תמונת המפתח להצגה
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(cat_id) REFERENCES cats(id)
     )');
+
+    // שדרוג סכימה: הוספת is_main אם חסר במסדי נתונים קיימים
+    try {
+        $cols = $pdo->query('PRAGMA table_info(media)')->fetchAll(PDO::FETCH_ASSOC);
+        $hasIsMain = false;
+        foreach ($cols as $c) {
+            if (isset($c['name']) && $c['name'] === 'is_main') { $hasIsMain = true; break; }
+        }
+        if (!$hasIsMain) {
+            $pdo->exec('ALTER TABLE media ADD COLUMN is_main INTEGER DEFAULT 0');
+        }
+    } catch (Throwable $e) {
+        // נתעלם אם כבר קיים/גרסה ישנה של SQLite שלא תומכת IF NOT EXISTS; לא קריטי להרצה
+        error_log('Schema upgrade check (is_main) notice: ' . $e->getMessage());
+    }
 
     // תגיות (האשטגים) לחתולים: many-to-many
     $pdo->exec('CREATE TABLE IF NOT EXISTS tags (
@@ -165,17 +181,21 @@ function add_media($cat_id, $type, $drive_file_id, $local_path) {
     $t = strtolower(trim((string)$type));
     if (strpos($t, 'image') === 0) { $t = 'image'; }
     elseif (strpos($t, 'video') === 0) { $t = 'video'; }
-    $stmt = get_db()->prepare('INSERT INTO media(cat_id, type, drive_file_id, local_path) VALUES (:c, :t, :df, :lp)');
-    return $stmt->execute([
+    $pdo = get_db();
+    $stmt = $pdo->prepare('INSERT INTO media(cat_id, type, drive_file_id, local_path) VALUES (:c, :t, :df, :lp)');
+    $ok = $stmt->execute([
         ':c' => (int)$cat_id,
         ':t' => $t,
         ':df' => $drive_file_id,
         ':lp' => $local_path,
     ]);
+    if (!$ok) { return false; }
+    return (int)$pdo->lastInsertId();
 }
 
 function fetch_media_for_cat($cat_id) {
-    $stmt = get_db()->prepare('SELECT * FROM media WHERE cat_id = :c ORDER BY created_at DESC');
+    // העדפת המדיה שמסומנת כתמונת מפתח
+    $stmt = get_db()->prepare('SELECT * FROM media WHERE cat_id = :c ORDER BY COALESCE(is_main,0) DESC, created_at DESC, id DESC');
     $stmt->execute([':c' => $cat_id]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -197,11 +217,12 @@ function fetch_latest_image_map_for_cats(array $catIds) {
     $sql = 'SELECT m.cat_id, m.local_path
             FROM media m
             INNER JOIN (
-                SELECT cat_id, MAX(id) AS max_id
+                SELECT cat_id,
+                       COALESCE(MAX(CASE WHEN is_main=1 THEN id END), MAX(id)) AS pick_id
                 FROM media
                 WHERE type = "image" AND cat_id IN (' . $placeholders . ')
                 GROUP BY cat_id
-            ) t ON t.max_id = m.id';
+            ) t ON t.pick_id = m.id';
     $stmt = get_db()->prepare($sql);
     foreach ($catIds as $i => $cid) {
         $stmt->bindValue($i + 1, $cid, PDO::PARAM_INT);
@@ -213,6 +234,34 @@ function fetch_latest_image_map_for_cats(array $catIds) {
         $out[(int)$r['cat_id']] = (string)$r['local_path'];
     }
     return $out;
+}
+
+// מפה של תמונת מפתח (אם קיימת) או תמונה אחרונה עבור קבוצת חתולים
+function fetch_main_or_latest_image_map_for_cats(array $catIds) {
+    return fetch_latest_image_map_for_cats($catIds);
+}
+
+// סימון מדיה כתמונת מפתח עבור חתול; מבטיח ייחודיות בתוך החתול
+function set_main_media($cat_id, $media_id) {
+    $pdo = get_db();
+    $cat_id = (int)$cat_id; $media_id = (int)$media_id;
+    if ($cat_id <= 0 || $media_id <= 0) { return false; }
+    // ודא שהמדיה שייכת לחתול ושהיא תמונה
+    $check = $pdo->prepare('SELECT id FROM media WHERE id = :mid AND cat_id = :cid AND type = "image"');
+    $check->execute([':mid' => $media_id, ':cid' => $cat_id]);
+    $row = $check->fetch(PDO::FETCH_ASSOC);
+    if (!$row) { return false; }
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare('UPDATE media SET is_main = 0 WHERE cat_id = :cid')->execute([':cid' => $cat_id]);
+        $pdo->prepare('UPDATE media SET is_main = 1 WHERE id = :mid')->execute([':mid' => $media_id]);
+        $pdo->commit();
+        return true;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) { $pdo->rollBack(); }
+        error_log('set_main_media failed: ' . $e->getMessage());
+        return false;
+    }
 }
 
 // שליפת חתול בודד לפי מזהה
