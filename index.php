@@ -20,6 +20,8 @@ require_once __DIR__ . '/inc/cloudinary.php';
   .cat-media img,
   .cat-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
   .cat-card .card-body { display: flex; flex-direction: column; }
+  /* אפשרות קליק לפתיחת מודל */
+  .cat-card { cursor: pointer; }
     </style>
 </head>
 <body>
@@ -60,6 +62,20 @@ require_once __DIR__ . '/inc/cloudinary.php';
       foreach ($cats as $cat):
         $media = fetch_media_for_cat((int)$cat['id']);
         $tags = function_exists('fetch_tags_for_cat') ? fetch_tags_for_cat((int)$cat['id']) : [];
+        // מדיה למודל (כל הפריטים)
+        $modalMedia = [];
+        foreach ($media as $m) {
+          $src = isset($m['local_path']) ? (string)$m['local_path'] : '';
+          if (!$src) { continue; }
+          if ($m['type'] === 'image') {
+            if (strpos($src, 'res.cloudinary.com') !== false) {
+              $src = cloudinary_transform_image_url($src);
+            }
+            $modalMedia[] = ['type' => 'image', 'src' => $src];
+          } elseif ($m['type'] === 'video') {
+            $modalMedia[] = ['type' => 'video', 'src' => $src];
+          }
+        }
     ?>
     <div class="col-12 col-sm-6 col-lg-4 mb-4 d-flex">
       <div class="card cat-card shadow-sm h-100 w-100">
@@ -115,6 +131,22 @@ require_once __DIR__ . '/inc/cloudinary.php';
           <?php endif; ?>
           
         </div>
+        <?php
+          // נתוני חתול למודל בפורמט JSON בתוך תגית script
+          $catJson = [
+            'id' => (int)$cat['id'],
+            'name' => (string)$cat['name'],
+            'location' => !empty($cat['location_name']) ? (string)$cat['location_name'] : '',
+            'description' => !empty($cat['description']) ? (string)$cat['description'] : '',
+            'tags' => array_values($tags),
+            'media' => $modalMedia,
+          ];
+          $catJsonStr = json_encode($catJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+          if ($catJsonStr === false) { $catJsonStr = '{}'; }
+          // הגנה בסיסית מול סיום תגית
+          $catJsonStr = str_replace('</script>', '<\\/script>', $catJsonStr);
+        ?>
+        <script type="application/json" class="cat-data"><?= $catJsonStr ?></script>
       </div>
     </div>
     <?php endforeach; ?>
@@ -125,6 +157,121 @@ require_once __DIR__ . '/inc/cloudinary.php';
   </div>
 </div>
 
+<!-- מודל להצגת פרטי חתול -->
+<div class="modal fade" id="catModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">פרטי חתול</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="סגור"></button>
+      </div>
+      <div class="modal-body">
+        <!-- התוכן ייטען דינמית -->
+      </div>
+    </div>
+  </div>
+  
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // פונקציית עזר לאסקייפ של טקסט
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // פתיחת מודל בלחיצה על כרטיס
+  document.querySelectorAll('.cat-card').forEach(function(card){
+    card.addEventListener('click', function(e){
+      // אל תפתח אם לחצו על קישור/כפתור/וידאו
+      if (e.target.closest('a, button, .badge, video')) { return; }
+      var dataScript = card.querySelector('script.cat-data');
+      if (!dataScript) { return; }
+      var data;
+      try { data = JSON.parse(dataScript.textContent || '{}'); }
+      catch (err) { return; }
+
+      var modalEl = document.getElementById('catModal');
+      if (!modalEl) { return; }
+      modalEl.querySelector('.modal-title').textContent = data.name || 'פרטי חתול';
+      var body = modalEl.querySelector('.modal-body');
+
+      var html = '';
+      if (Array.isArray(data.media) && data.media.length) {
+        if (data.media.length > 1) {
+          html += '<div id="catCarousel" class="carousel slide mb-3" data-bs-ride="carousel">';
+          html += '<div class="carousel-inner">';
+          for (var i = 0; i < data.media.length; i++) {
+            var m = data.media[i];
+            var active = i === 0 ? ' active' : '';
+            if (m.type === 'image') {
+              html += '<div class="carousel-item'+active+'">'+
+                        '<img src="'+escapeHtml(m.src)+'" class="d-block w-100" alt="">'+
+                      '</div>';
+            } else if (m.type === 'video') {
+              html += '<div class="carousel-item'+active+'">'+
+                        '<div class="ratio ratio-16x9">'+
+                          '<video controls preload="metadata">'+
+                            '<source src="'+escapeHtml(m.src)+'">'+
+                          '</video>'+
+                        '</div>'+
+                      '</div>';
+            }
+          }
+          html += '</div>';
+          html += '<button class="carousel-control-prev" type="button" data-bs-target="#catCarousel" data-bs-slide="prev">'+
+                    '<span class="carousel-control-prev-icon" aria-hidden="true"></span>'+ 
+                    '<span class="visually-hidden">הקודם</span>'+ 
+                  '</button>'; 
+          html += '<button class="carousel-control-next" type="button" data-bs-target="#catCarousel" data-bs-slide="next">'+
+                    '<span class="carousel-control-next-icon" aria-hidden="true"></span>'+ 
+                    '<span class="visually-hidden">הבא</span>'+ 
+                  '</button>'; 
+          html += '</div>';
+        } else {
+          var m0 = data.media[0];
+          if (m0.type === 'image') {
+            html += '<img src="'+escapeHtml(m0.src)+'" class="img-fluid mb-3" alt="">';
+          } else if (m0.type === 'video') {
+            html += '<div class="ratio ratio-16x9 mb-3">'+
+                      '<video controls preload="metadata">'+
+                        '<source src="'+escapeHtml(m0.src)+'">'+
+                      '</video>'+ 
+                    '</div>';
+          }
+        }
+      }
+
+      if (data.location) {
+        html += '<div class="text-muted small mb-1">מיקום: '+escapeHtml(data.location)+'</div>';
+      }
+      if (data.description) {
+        html += '<p>' + escapeHtml(data.description).replace(/\n/g, '<br>') + '</p>';
+      }
+      if (Array.isArray(data.tags) && data.tags.length) {
+        var urlParams = new URLSearchParams(window.location.search);
+        var loc = urlParams.get('location');
+        var locQ = loc ? ('&location=' + encodeURIComponent(loc)) : '';
+        html += '<div class="mt-2">';
+        for (var t = 0; t < data.tags.length; t++) {
+          var tag = data.tags[t];
+          var href = '?tag=' + encodeURIComponent(tag) + locQ;
+          html += '<a href="'+href+'" class="badge rounded-pill text-bg-secondary text-decoration-none me-1">#'+escapeHtml(tag)+'</a>';
+        }
+        html += '</div>';
+      }
+
+      body.innerHTML = html;
+      var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    });
+  });
+</script>
 </body>
 </html>
