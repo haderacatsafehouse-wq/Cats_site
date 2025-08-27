@@ -104,8 +104,13 @@ function require_admin_auth_or_login_form() {
     $err = '';
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_password'])) {
         if (admin_login($_POST['admin_password'])) {
-            // רענון GET למניעת resubmit של הטופס
-            $redir = strtok($_SERVER['REQUEST_URI'], '\n');
+            // רענון GET למניעת resubmit של הטופס — בנייה בטוחה של ה-URL הנוכחי
+            $path = isset($_SERVER['PHP_SELF']) ? (string)$_SERVER['PHP_SELF'] : '/';
+            $qs = isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== '' ? ('?' . $_SERVER['QUERY_STRING']) : '';
+            $redir = $path . $qs;
+            // הסרת תווי שורה להגנה על כותרות
+            $redir = preg_replace('/[\r\n]+/', '', $redir);
+            if ($redir === '' || $redir[0] !== '/') { $redir = '/'; }
             header('Location: ' . $redir, true, 302);
             exit;
         } else {
