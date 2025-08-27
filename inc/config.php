@@ -34,6 +34,11 @@ define('CLOUDINARY_API_SECRET', isset($__cloud['api_secret']) ? $__cloud['api_se
 // הגדרות כלליות ל-UI
 define('SITE_TITLE', 'מקלט חתולים - אינדקס');
 
+// קובץ מיקומים חיצוני (נכנס ל-Git). ניתן לשנות דרך JSON (locations_file).
+// אם לא הוגדר, ישתמש ב-inc/locations.json
+$__locations_file = isset($__CONF['locations_file']) && $__CONF['locations_file'] ? $__CONF['locations_file'] : (__DIR__ . '/locations.json');
+define('LOCATIONS_FILE', $__locations_file);
+
 // מאפייני אבטחה בסיסיים ל-uploads
 $ALLOWED_IMAGE_MIME = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp'
