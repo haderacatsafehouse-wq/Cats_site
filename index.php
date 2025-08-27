@@ -17,7 +17,10 @@ require_once __DIR__ . '/inc/cloudinary.php';
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
   <div class="container-fluid">
-    <span class="navbar-brand"><?= htmlspecialchars(SITE_TITLE) ?></span>
+    <span class="navbar-brand d-flex align-items-center">
+      <img class="brand-logo" src="https://www.haderacats.org.il/wp-content/uploads/2025/07/Untitled12.png" alt="לוגו" loading="eager">
+      <span class="ms-2"><?= htmlspecialchars(SITE_TITLE) ?></span>
+    </span>
   </div>
 </nav>
 <div class="container">

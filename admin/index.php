@@ -84,7 +84,10 @@ $all_tags = function_exists('fetch_all_tags') ? fetch_all_tags() : [];
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
   <div class="container-fluid">
-    <a class="navbar-brand" href="/cat">חזרה לרשימה</a>
+    <a class="navbar-brand d-flex align-items-center" href="/cat">
+      <img class="brand-logo" src="https://www.haderacats.org.il/wp-content/uploads/2025/07/Untitled12.png" alt="לוגו" loading="eager">
+      <span class="ms-2">חזרה לרשימה</span>
+    </a>
     <span class="navbar-text text-light">אזור ניהול</span>
   </div>
 </nav>

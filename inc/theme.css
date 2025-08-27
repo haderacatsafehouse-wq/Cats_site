@@ -41,6 +41,18 @@ body {
 .navbar-dark .nav-link:hover,
 .navbar-dark .nav-link:focus { color: #e9d8ff; }
 
+/* Brand logo */
+.navbar-brand { gap: .5rem; }
+.navbar-brand .brand-logo {
+  height: 42px;
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+@media (max-width: 575.98px) {
+  .navbar-brand .brand-logo { height: 36px; }
+}
+
 /* Buttons - Bootstrap 5.3 uses CSS vars we can override per component */
 .btn-primary {
   --bs-btn-color: #fff;
